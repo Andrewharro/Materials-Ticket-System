@@ -1,21 +1,15 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Inbox, Send, Clock, CheckCircle, X } from "lucide-react";
+import { Inbox, Send, Clock, CheckCircle, X, Package, FileText } from "lucide-react";
 import { apiGet } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import {
   Tooltip, Legend, ResponsiveContainer,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Line, ComposedChart,
+  XAxis, YAxis, CartesianGrid, Line, ComposedChart, Bar,
 } from "recharts";
 
 type FilterKey = "inbound" | "outbound" | "new" | "open" | "onhold" | "closed" | null;
-
-const PIE_COLORS = [
-  "#3b82f6", "#8b5cf6", "#06b6d4", "#10b981", "#f59e0b",
-  "#ef4444", "#ec4899", "#6366f1", "#14b8a6", "#f97316",
-  "#84cc16", "#a855f7", "#0ea5e9", "#22c55e", "#e11d48",
-];
 
 export default function Dashboard() {
   const [activeFilter, setActiveFilter] = useState<FilterKey>(null);
@@ -60,7 +54,7 @@ export default function Dashboard() {
 
   const { data: chartData } = useQuery({
     queryKey: ["dashboard-charts", activeFilter],
-    queryFn: () => apiGet<{ byProject: { name: string; count: number }[]; byMonth: { month: string; count: number; items: number }[] }>(
+    queryFn: () => apiGet<{ byProject: { name: string; count: number; items: number }[]; byMonth: { month: string; count: number; items: number }[] }>(
       `/api/dashboard/stats?${chartParams.toString()}`
     ),
   });
@@ -95,6 +89,8 @@ export default function Dashboard() {
     ? stats.find(s => s.key === activeFilter)?.label
     : null;
 
+  const maxTickets = projectData.length > 0 ? projectData[0].count : 1;
+
   return (
     <div className="p-8">
       <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-8" data-testid="text-dashboard-title">Dashboard</h1>
@@ -127,41 +123,73 @@ export default function Dashboard() {
       {activeFilter && (
         <div className="mb-4 flex items-center gap-2">
           <span className="text-sm text-slate-600">
-            Showing charts for: <span className="font-semibold">{filterLabel}</span>
+            Filtered by: <span className="font-semibold">{filterLabel}</span>
           </span>
           <button
             onClick={() => setActiveFilter(null)}
             className="text-sm text-slate-500 hover:text-slate-800 flex items-center gap-1 transition-colors"
             data-testid="button-clear-filter"
           >
-            <X className="w-4 h-4" /> Clear filter
+            <X className="w-4 h-4" /> Clear
           </button>
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="shadow-sm border-slate-200">
-          <CardHeader>
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 mb-6">
+        <Card className="shadow-sm border-slate-200 xl:col-span-2">
+          <CardHeader className="pb-3">
             <CardTitle className="text-lg">Tickets by Project</CardTitle>
+            <div className="flex items-center gap-6 text-xs text-slate-400 pt-1">
+              <span className="flex items-center gap-1"><FileText className="w-3.5 h-3.5" /> Tickets</span>
+              <span className="flex items-center gap-1"><Package className="w-3.5 h-3.5" /> Items</span>
+            </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-0">
             {projectData.length === 0 ? (
               <p className="text-slate-400 text-center py-12">No data</p>
             ) : (
-              <ResponsiveContainer width="100%" height={Math.max(300, projectData.length * 32 + 40)}>
-                <BarChart data={projectData} layout="vertical" margin={{ left: 10, right: 30, top: 5, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
-                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} />
-                  <YAxis type="category" dataKey="name" width={150} tick={{ fontSize: 11 }} />
-                  <Tooltip formatter={(value: number) => [value, "Tickets"]} />
-                  <Bar dataKey="count" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={20} />
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="space-y-1">
+                {projectData.map((project, idx) => {
+                  const barWidth = Math.max(4, (project.count / maxTickets) * 100);
+                  return (
+                    <div
+                      key={project.name}
+                      className={cn(
+                        "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors",
+                        idx % 2 === 0 ? "bg-slate-50" : "bg-white"
+                      )}
+                      data-testid={`row-project-${idx}`}
+                    >
+                      <span className="text-xs font-medium text-slate-400 w-5 text-right shrink-0">{idx + 1}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-800 truncate">{project.name}</p>
+                        <div className="mt-1.5 h-1.5 rounded-full bg-slate-200 overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-blue-500 transition-all duration-500"
+                            style={{ width: `${barWidth}%` }}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4 shrink-0">
+                        <div className="text-right">
+                          <p className="text-sm font-semibold text-slate-900">{project.count.toLocaleString()}</p>
+                          <p className="text-[10px] text-slate-400 uppercase tracking-wider">tickets</p>
+                        </div>
+                        <div className="w-px h-8 bg-slate-200" />
+                        <div className="text-right">
+                          <p className="text-sm font-semibold text-amber-600">{project.items.toLocaleString()}</p>
+                          <p className="text-[10px] text-slate-400 uppercase tracking-wider">items</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm border-slate-200">
+        <Card className="shadow-sm border-slate-200 xl:col-span-3">
           <CardHeader>
             <CardTitle className="text-lg">Tickets & Items per Month</CardTitle>
           </CardHeader>
@@ -169,7 +197,7 @@ export default function Dashboard() {
             {monthData.length === 0 ? (
               <p className="text-slate-400 text-center py-12">No data</p>
             ) : (
-              <ResponsiveContainer width="100%" height={350}>
+              <ResponsiveContainer width="100%" height={400}>
                 <ComposedChart data={monthData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="label" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={60} />
