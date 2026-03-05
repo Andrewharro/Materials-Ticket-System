@@ -6,14 +6,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Columns3, GripVertical, Eye, EyeOff } from "lucide-react";
+import { ChevronLeft, ChevronRight, Columns3, GripVertical, Eye, EyeOff, LayoutGrid, Save, Pencil, Trash2, Check, X } from "lucide-react";
 import { apiGet } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 interface ColumnDef {
   key: string;
   label: string;
-  render?: (ticket: any) => React.ReactNode;
 }
 
 const ALL_COLUMNS: ColumnDef[] = [
@@ -54,6 +53,12 @@ const ALL_COLUMNS: ColumnDef[] = [
 
 const DEFAULT_VISIBLE = ["id", "status", "serviceOrder", "projectName", "state", "ownerName", "assignedToName"];
 
+interface SavedView {
+  id: string;
+  name: string;
+  columns: string[];
+}
+
 function statusColor(status: string) {
   switch (status) {
     case "New": return "bg-blue-50 text-blue-700 border-blue-200";
@@ -83,13 +88,9 @@ function formatCellValue(key: string, ticket: any): React.ReactNode {
   return val || "—";
 }
 
-function getStorageKey(direction: string) {
-  return `ticketColumns_${direction}`;
-}
-
 function loadColumnConfig(direction: string): string[] {
   try {
-    const saved = localStorage.getItem(getStorageKey(direction));
+    const saved = localStorage.getItem(`ticketColumns_${direction}`);
     if (saved) {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed) && parsed.length > 0) return parsed;
@@ -99,7 +100,246 @@ function loadColumnConfig(direction: string): string[] {
 }
 
 function saveColumnConfig(direction: string, columns: string[]) {
-  localStorage.setItem(getStorageKey(direction), JSON.stringify(columns));
+  localStorage.setItem(`ticketColumns_${direction}`, JSON.stringify(columns));
+}
+
+function loadViews(direction: string): SavedView[] {
+  try {
+    const saved = localStorage.getItem(`ticketViews_${direction}`);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch {}
+  return [];
+}
+
+function saveViews(direction: string, views: SavedView[]) {
+  localStorage.setItem(`ticketViews_${direction}`, JSON.stringify(views));
+}
+
+function loadActiveViewId(direction: string): string | null {
+  return localStorage.getItem(`ticketActiveView_${direction}`);
+}
+
+function saveActiveViewId(direction: string, id: string | null) {
+  if (id) {
+    localStorage.setItem(`ticketActiveView_${direction}`, id);
+  } else {
+    localStorage.removeItem(`ticketActiveView_${direction}`);
+  }
+}
+
+function ViewsPanel({ direction, currentColumns, onApplyView }: {
+  direction: string;
+  currentColumns: string[];
+  onApplyView: (columns: string[], viewId: string | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [views, setViews] = useState<SavedView[]>(() => loadViews(direction));
+  const [activeViewId, setActiveViewId] = useState<string | null>(() => loadActiveViewId(direction));
+  const [saving, setSaving] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setSaving(false);
+        setRenamingId(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleSaveNew = () => {
+    if (!newName.trim()) return;
+    const view: SavedView = {
+      id: Date.now().toString(),
+      name: newName.trim(),
+      columns: [...currentColumns],
+    };
+    const updated = [...views, view];
+    setViews(updated);
+    saveViews(direction, updated);
+    setActiveViewId(view.id);
+    saveActiveViewId(direction, view.id);
+    setNewName("");
+    setSaving(false);
+  };
+
+  const handleSelectView = (view: SavedView) => {
+    setActiveViewId(view.id);
+    saveActiveViewId(direction, view.id);
+    onApplyView(view.columns, view.id);
+    setOpen(false);
+  };
+
+  const handleDeleteView = (id: string) => {
+    const updated = views.filter(v => v.id !== id);
+    setViews(updated);
+    saveViews(direction, updated);
+    if (activeViewId === id) {
+      setActiveViewId(null);
+      saveActiveViewId(direction, null);
+    }
+  };
+
+  const handleRenameStart = (view: SavedView) => {
+    setRenamingId(view.id);
+    setRenameValue(view.name);
+  };
+
+  const handleRenameConfirm = () => {
+    if (!renamingId || !renameValue.trim()) return;
+    const updated = views.map(v => v.id === renamingId ? { ...v, name: renameValue.trim() } : v);
+    setViews(updated);
+    saveViews(direction, updated);
+    setRenamingId(null);
+    setRenameValue("");
+  };
+
+  const handleUpdateView = (view: SavedView) => {
+    const updated = views.map(v => v.id === view.id ? { ...v, columns: [...currentColumns] } : v);
+    setViews(updated);
+    saveViews(direction, updated);
+  };
+
+  const handleClearView = () => {
+    setActiveViewId(null);
+    saveActiveViewId(direction, null);
+    onApplyView(DEFAULT_VISIBLE, null);
+    setOpen(false);
+  };
+
+  const activeView = views.find(v => v.id === activeViewId);
+
+  return (
+    <div ref={panelRef} className="relative">
+      <Button variant="outline" size="sm" onClick={() => setOpen(!open)} data-testid="button-views" className={activeView ? "border-blue-400 text-blue-700 bg-blue-50" : ""}>
+        <LayoutGrid className="w-4 h-4 mr-1" />
+        {activeView ? activeView.name : "Views"}
+      </Button>
+      {open && (
+        <div className="absolute right-0 z-50 mt-1 w-80 rounded-md border bg-white shadow-lg flex flex-col">
+          <div className="px-3 py-2 border-b bg-slate-50 text-xs font-semibold text-slate-500 uppercase">
+            Saved Views
+          </div>
+          <div className="max-h-64 overflow-y-auto">
+            {views.length === 0 && !saving && (
+              <div className="px-3 py-4 text-sm text-slate-400 text-center">
+                No saved views yet
+              </div>
+            )}
+            {views.map(view => (
+              <div
+                key={view.id}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2 text-sm border-b border-slate-100 hover:bg-slate-50 group",
+                  activeViewId === view.id && "bg-blue-50"
+                )}
+              >
+                {renamingId === view.id ? (
+                  <div className="flex items-center gap-1 flex-1">
+                    <input
+                      type="text"
+                      value={renameValue}
+                      onChange={e => setRenameValue(e.target.value)}
+                      onKeyDown={e => { if (e.key === "Enter") handleRenameConfirm(); if (e.key === "Escape") setRenamingId(null); }}
+                      className="flex-1 px-2 py-0.5 border rounded text-sm"
+                      autoFocus
+                      data-testid="input-rename-view"
+                    />
+                    <button type="button" onClick={handleRenameConfirm} className="p-0.5 text-green-600 hover:bg-green-100 rounded" data-testid="button-rename-confirm">
+                      <Check className="w-3.5 h-3.5" />
+                    </button>
+                    <button type="button" onClick={() => setRenamingId(null)} className="p-0.5 text-slate-400 hover:bg-slate-200 rounded">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectView(view)}
+                      className="flex-1 text-left truncate font-medium"
+                      data-testid={`button-select-view-${view.id}`}
+                    >
+                      {view.name}
+                      <span className="text-xs text-slate-400 ml-1">({view.columns.length} cols)</span>
+                    </button>
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateView(view)}
+                        title="Update with current columns"
+                        className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded"
+                        data-testid={`button-update-view-${view.id}`}
+                      >
+                        <Save className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRenameStart(view)}
+                        className="p-1 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded"
+                        data-testid={`button-rename-view-${view.id}`}
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteView(view.id)}
+                        className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded"
+                        data-testid={`button-delete-view-${view.id}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {saving ? (
+            <div className="px-3 py-2 border-t flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="View name..."
+                value={newName}
+                onChange={e => setNewName(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") handleSaveNew(); if (e.key === "Escape") setSaving(false); }}
+                className="flex-1 px-2 py-1 border rounded text-sm"
+                autoFocus
+                data-testid="input-new-view-name"
+              />
+              <Button size="sm" onClick={handleSaveNew} disabled={!newName.trim()} data-testid="button-save-new-view" className="h-7 text-xs">
+                Save
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => { setSaving(false); setNewName(""); }} className="h-7 text-xs">
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <div className="px-3 py-2 border-t flex items-center gap-2">
+              <Button size="sm" variant="outline" onClick={() => setSaving(true)} className="flex-1 h-7 text-xs" data-testid="button-save-view">
+                <Save className="w-3 h-3 mr-1" /> Save Current as View
+              </Button>
+              {activeView && (
+                <Button size="sm" variant="ghost" onClick={handleClearView} className="h-7 text-xs text-slate-500" data-testid="button-clear-view">
+                  Clear
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function ColumnConfigPanel({ direction, visibleColumns, onUpdate }: {
@@ -237,6 +477,11 @@ export default function TicketTable({ direction }: { direction: "INBOUND" | "OUT
   const pageSize = 25;
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => loadColumnConfig(direction));
 
+  const handleApplyView = (columns: string[], _viewId: string | null) => {
+    setVisibleColumns(columns);
+    saveColumnConfig(direction, columns);
+  };
+
   const params = new URLSearchParams();
   params.set("direction", direction);
   params.set("page", page.toString());
@@ -277,11 +522,19 @@ export default function TicketTable({ direction }: { direction: "INBOUND" | "OUT
             <SelectItem value="Not Assigned">Not Assigned</SelectItem>
           </SelectContent>
         </Select>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          <ViewsPanel
+            direction={direction}
+            currentColumns={visibleColumns}
+            onApplyView={handleApplyView}
+          />
           <ColumnConfigPanel
             direction={direction}
             visibleColumns={visibleColumns}
-            onUpdate={setVisibleColumns}
+            onUpdate={(cols) => {
+              setVisibleColumns(cols);
+              saveActiveViewId(direction, null);
+            }}
           />
         </div>
       </div>

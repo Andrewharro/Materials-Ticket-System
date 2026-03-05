@@ -23,6 +23,7 @@ Full-stack materials ticketing system replacing a Power Apps + SharePoint soluti
 - `client/src/App.tsx` — React Router with protected routes
 - `client/src/lib/auth.ts` — Frontend auth helpers (token, apiFetch)
 - `client/src/components/Sidebar.tsx` — Navigation sidebar
+- `client/src/components/TicketTable.tsx` — Ticket list with dynamic column picker + saved views (localStorage)
 - `client/src/pages/` — Dashboard, InboundTickets, OutboundTickets, TicketDetail, SettingsUsers, SettingsReferenceData, Login
 
 ## Data Model
