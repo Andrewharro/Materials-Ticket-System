@@ -5,7 +5,6 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
 
-export const userRoleEnum = pgEnum("user_role", ["USER", "COORDINATOR", "ADMIN"]);
 export const ticketDirectionEnum = pgEnum("ticket_direction", ["INBOUND", "OUTBOUND"]);
 export const ticketStatusKeyEnum = pgEnum("ticket_status_key", [
   "NEW", "OPEN", "ON_HOLD", "CLOSED", "NOT_ASSIGNED", "OTHER",
@@ -16,7 +15,7 @@ export const users = pgTable("users", {
   email: varchar("email", { length: 255 }).notNull().unique(),
   firstName: varchar("first_name", { length: 255 }).notNull(),
   lastName: varchar("last_name", { length: 255 }).notNull(),
-  role: userRoleEnum("role").notNull().default("USER"),
+  role: varchar("role", { length: 50 }).notNull().default("USER"),
   isActive: boolean("is_active").notNull().default(true),
   passwordHash: text("password_hash"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
