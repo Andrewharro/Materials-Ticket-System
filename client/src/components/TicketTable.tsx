@@ -67,12 +67,12 @@ interface SavedView {
 
 function statusColor(status: string) {
   switch (status) {
-    case "New": return "bg-blue-50 text-blue-700 border-blue-200";
+    case "New": return "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800";
     case "Open":
-    case "In Progress": return "bg-amber-50 text-amber-700 border-amber-200";
-    case "Closed": return "bg-green-50 text-green-700 border-green-200";
-    case "On Hold": return "bg-orange-50 text-orange-700 border-orange-200";
-    default: return "bg-slate-100 text-slate-700";
+    case "In Progress": return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800";
+    case "Closed": return "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800";
+    case "On Hold": return "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800";
+    default: return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300";
   }
 }
 
@@ -220,8 +220,8 @@ function ColumnHeaderDropdown({ columnKey, direction, sortBy, sortOrder, filterV
         type="button"
         onClick={() => setOpen(!open)}
         className={cn(
-          "flex items-center gap-1 w-full px-3 py-2 text-left text-xs font-medium uppercase tracking-wider select-none hover:bg-slate-100 transition-colors",
-          (isSorted || isFiltered) && "text-blue-700"
+          "flex items-center gap-1 w-full px-3 py-2 text-left text-xs font-medium uppercase tracking-wider select-none hover:bg-slate-100 dark:hover:bg-muted transition-colors",
+          (isSorted || isFiltered) && "text-blue-700 dark:text-blue-400"
         )}
         data-testid={`button-colmenu-${columnKey}`}
       >
@@ -239,12 +239,12 @@ function ColumnHeaderDropdown({ columnKey, direction, sortBy, sortOrder, filterV
         </span>
       </button>
       {open && dropdownPos && createPortal(
-        <div ref={panelRef} className="fixed z-[9999] w-56 rounded-md border bg-white shadow-lg flex flex-col" style={{ top: dropdownPos.top, left: dropdownPos.left, maxHeight: "340px" }}>
+        <div ref={panelRef} className="fixed z-[9999] w-56 rounded-md border bg-white dark:bg-card dark:border-border shadow-lg flex flex-col" style={{ top: dropdownPos.top, left: dropdownPos.left, maxHeight: "340px" }}>
           <div className="border-b">
             <button
               type="button"
               onClick={() => { onSort(columnKey, "asc"); setOpen(false); }}
-              className={cn("flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-slate-50", isSorted && sortOrder === "asc" && "bg-blue-50 text-blue-700")}
+              className={cn("flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-slate-50 dark:hover:bg-muted", isSorted && sortOrder === "asc" && "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300")}
               data-testid={`button-sort-asc-${columnKey}`}
             >
               <ArrowUp className="w-3.5 h-3.5" /> Sort Ascending
@@ -252,7 +252,7 @@ function ColumnHeaderDropdown({ columnKey, direction, sortBy, sortOrder, filterV
             <button
               type="button"
               onClick={() => { onSort(columnKey, "desc"); setOpen(false); }}
-              className={cn("flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-slate-50", isSorted && sortOrder === "desc" && "bg-blue-50 text-blue-700")}
+              className={cn("flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-slate-50 dark:hover:bg-muted", isSorted && sortOrder === "desc" && "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300")}
               data-testid={`button-sort-desc-${columnKey}`}
             >
               <ArrowDown className="w-3.5 h-3.5" /> Sort Descending
@@ -261,7 +261,7 @@ function ColumnHeaderDropdown({ columnKey, direction, sortBy, sortOrder, filterV
               <button
                 type="button"
                 onClick={() => { onSort(columnKey, null); setOpen(false); }}
-                className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-500 hover:bg-slate-50"
+                className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-500 hover:bg-slate-50 dark:hover:bg-muted dark:text-muted-foreground"
                 data-testid={`button-sort-clear-${columnKey}`}
               >
                 <X className="w-3.5 h-3.5" /> Clear Sort
@@ -276,7 +276,7 @@ function ColumnHeaderDropdown({ columnKey, direction, sortBy, sortOrder, filterV
                 placeholder="Search values..."
                 value={searchText}
                 onChange={e => setSearchText(e.target.value)}
-                className="w-full pl-7 pr-2 py-1.5 text-sm border rounded bg-white text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                className="w-full pl-7 pr-2 py-1.5 text-sm border rounded bg-white dark:bg-muted text-slate-700 dark:text-foreground placeholder:text-slate-400 dark:placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-border"
                 autoFocus
                 data-testid={`input-filter-search-${columnKey}`}
               />
@@ -287,7 +287,7 @@ function ColumnHeaderDropdown({ columnKey, direction, sortBy, sortOrder, filterV
               <button
                 type="button"
                 onClick={() => { onFilter(columnKey, ""); setOpen(false); }}
-                className="flex items-center gap-2 w-full px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 border-b"
+                className="flex items-center gap-2 w-full px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50 border-b dark:border-border"
                 data-testid={`button-clear-filter-${columnKey}`}
               >
                 <X className="w-3.5 h-3.5" /> Clear Filter
@@ -304,8 +304,8 @@ function ColumnHeaderDropdown({ columnKey, direction, sortBy, sortOrder, filterV
                   type="button"
                   onClick={() => { onFilter(columnKey, val); setOpen(false); }}
                   className={cn(
-                    "flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-slate-50 text-left truncate",
-                    filterValue === val && "bg-blue-50 text-blue-700 font-medium"
+                    "flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-slate-50 dark:hover:bg-muted text-left truncate",
+                    filterValue === val && "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 font-medium"
                   )}
                   data-testid={`button-filter-val-${columnKey}-${val}`}
                 >
@@ -459,13 +459,13 @@ function ViewsPanel({ direction, currentColumns, currentSortBy, currentSortOrder
         {activeView ? activeView.name : "Views"}
       </Button>
       {open && (
-        <div className="absolute right-0 z-50 mt-1 w-80 rounded-md border bg-white shadow-lg flex flex-col">
-          <div className="px-3 py-2 border-b bg-slate-50 text-xs font-semibold text-slate-500 uppercase">
+        <div className="absolute right-0 z-50 mt-1 w-80 rounded-md border bg-white dark:bg-card dark:border-border shadow-lg flex flex-col">
+          <div className="px-3 py-2 border-b bg-slate-50 dark:bg-muted text-xs font-semibold text-slate-500 dark:text-muted-foreground uppercase">
             Saved Views
           </div>
           <div className="max-h-64 overflow-y-auto">
             {views.length === 0 && !saving && (
-              <div className="px-3 py-4 text-sm text-slate-400 text-center">
+              <div className="px-3 py-4 text-sm text-slate-400 dark:text-muted-foreground text-center">
                 No saved views yet
               </div>
             )}
@@ -473,8 +473,8 @@ function ViewsPanel({ direction, currentColumns, currentSortBy, currentSortOrder
               <div
                 key={view.id}
                 className={cn(
-                  "flex items-center gap-2 px-3 py-2 text-sm border-b border-slate-100 hover:bg-slate-50 group",
-                  activeViewId === view.id && "bg-blue-50"
+                  "flex items-center gap-2 px-3 py-2 text-sm border-b border-slate-100 dark:border-border hover:bg-slate-50 dark:hover:bg-muted group",
+                  activeViewId === view.id && "bg-blue-50 dark:bg-blue-950"
                 )}
               >
                 {renamingId === view.id ? (
@@ -656,8 +656,8 @@ function ColumnConfigPanel({ direction, visibleColumns, onUpdate }: {
         <Columns3 className="w-4 h-4 mr-1" /> Columns
       </Button>
       {open && (
-        <div className="absolute right-0 z-50 mt-1 w-72 rounded-md border bg-white shadow-lg max-h-[70vh] flex flex-col">
-          <div className="px-3 py-2 border-b bg-slate-50 text-xs font-semibold text-slate-500 uppercase">
+        <div className="absolute right-0 z-50 mt-1 w-72 rounded-md border bg-white dark:bg-card dark:border-border shadow-lg max-h-[70vh] flex flex-col">
+          <div className="px-3 py-2 border-b bg-slate-50 dark:bg-muted text-xs font-semibold text-slate-500 dark:text-muted-foreground uppercase">
             Visible Columns (drag to reorder)
           </div>
           <div className="overflow-y-auto flex-1">
@@ -669,8 +669,8 @@ function ColumnConfigPanel({ direction, visibleColumns, onUpdate }: {
                 onDragOver={(e) => handleDragOver(e, idx)}
                 onDragEnd={handleDragEnd}
                 className={cn(
-                  "flex items-center gap-2 px-3 py-1.5 text-sm cursor-grab border-b border-slate-100 hover:bg-slate-50",
-                  dragIdx === idx && "bg-blue-50"
+                  "flex items-center gap-2 px-3 py-1.5 text-sm cursor-grab border-b border-slate-100 dark:border-border hover:bg-slate-50 dark:hover:bg-muted",
+                  dragIdx === idx && "bg-blue-50 dark:bg-blue-950"
                 )}
               >
                 <GripVertical className="w-3.5 h-3.5 text-slate-300 flex-shrink-0" />
@@ -687,13 +687,13 @@ function ColumnConfigPanel({ direction, visibleColumns, onUpdate }: {
             ))}
             {hiddenCols.length > 0 && (
               <>
-                <div className="px-3 py-2 bg-slate-50 text-xs font-semibold text-slate-500 uppercase border-t">
+                <div className="px-3 py-2 bg-slate-50 dark:bg-muted text-xs font-semibold text-slate-500 dark:text-muted-foreground uppercase border-t dark:border-border">
                   Hidden Columns
                 </div>
                 {hiddenCols.map(key => (
                   <div
                     key={key}
-                    className="flex items-center gap-2 px-3 py-1.5 text-sm border-b border-slate-100 hover:bg-slate-50 text-slate-400"
+                    className="flex items-center gap-2 px-3 py-1.5 text-sm border-b border-slate-100 dark:border-border hover:bg-slate-50 dark:hover:bg-muted text-slate-400 dark:text-muted-foreground"
                   >
                     <div className="w-3.5 flex-shrink-0" />
                     <span className="flex-1 truncate">{colLabel(key)}</span>
@@ -826,7 +826,7 @@ export default function TicketTable({ direction }: { direction: "INBOUND" | "OUT
           placeholder="Search tickets..."
           value={searchTerm}
           onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
-          className="max-w-sm bg-white"
+          className="max-w-sm bg-white dark:bg-card dark:border-border dark:text-foreground"
           data-testid="input-search"
         />
         {(activeFilterCount > 0 || sortBy) && (
@@ -855,9 +855,9 @@ export default function TicketTable({ direction }: { direction: "INBOUND" | "OUT
         </div>
       </div>
 
-      <div className="bg-white rounded-md border border-slate-200 shadow-sm overflow-x-auto overflow-y-auto" style={{ maxHeight: "calc(100vh - 280px)" }}>
+      <div className="bg-white dark:bg-card rounded-md border border-slate-200 dark:border-border shadow-sm overflow-x-auto overflow-y-auto" style={{ maxHeight: "calc(100vh - 280px)" }}>
         <Table className="table-fixed w-full">
-          <TableHeader className="bg-slate-50">
+          <TableHeader className="bg-slate-50 dark:bg-muted">
             <TableRow>
               {visibleColumns.map(key => {
                 const widths: Record<string, string> = { id: "70px", itemCount: "70px", status: "90px", priority: "80px", state: "60px", projectName: "110px", requestedDeliveryDate: "110px" };
@@ -880,11 +880,11 @@ export default function TicketTable({ direction }: { direction: "INBOUND" | "OUT
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={colCount} className="text-center py-8 text-slate-500">Loading...</TableCell>
+                <TableCell colSpan={colCount} className="text-center py-8 text-slate-500 dark:text-muted-foreground">Loading...</TableCell>
               </TableRow>
             ) : tickets.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={colCount} className="text-center py-8 text-slate-500">
+                <TableCell colSpan={colCount} className="text-center py-8 text-slate-500 dark:text-muted-foreground">
                   No tickets found.
                 </TableCell>
               </TableRow>
@@ -904,14 +904,14 @@ export default function TicketTable({ direction }: { direction: "INBOUND" | "OUT
       </div>
 
       <div className="flex items-center justify-between pt-3">
-        <p className="text-sm text-slate-500">{total} ticket{total !== 1 ? "s" : ""}</p>
+        <p className="text-sm text-slate-500 dark:text-muted-foreground">{total} ticket{total !== 1 ? "s" : ""}</p>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <span className="text-sm text-slate-500">Rows per page:</span>
+            <span className="text-sm text-slate-500 dark:text-muted-foreground">Rows per page:</span>
             <select
               value={pageSize}
               onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
-              className="border rounded px-2 py-1 text-sm text-slate-700 bg-white"
+              className="border rounded px-2 py-1 text-sm text-slate-700 bg-white dark:bg-card dark:text-foreground dark:border-border"
               data-testid="select-page-size"
             >
               {[10, 25, 50, 100].map(n => (
@@ -923,7 +923,7 @@ export default function TicketTable({ direction }: { direction: "INBOUND" | "OUT
             <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(p => p - 1)} data-testid="button-prev-page">
               <ChevronLeft className="w-4 h-4" />
             </Button>
-            <span className="text-sm text-slate-600">Page {page} of {totalPages}</span>
+            <span className="text-sm text-slate-600 dark:text-muted-foreground">Page {page} of {totalPages}</span>
             <Button variant="outline" size="sm" disabled={page === totalPages} onClick={() => setPage(p => p + 1)} data-testid="button-next-page">
               <ChevronRight className="w-4 h-4" />
             </Button>

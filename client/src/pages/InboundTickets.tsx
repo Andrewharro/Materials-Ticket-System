@@ -12,7 +12,7 @@ export default function InboundTickets() {
   return (
     <div className="p-8">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-slate-900 tracking-tight" data-testid="text-inbound-title">Inbound Tickets</h1>
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-foreground tracking-tight" data-testid="text-inbound-title">Inbound Tickets</h1>
         {!isSubcontractor && (
           <Button onClick={() => setLocation("/tickets/new?direction=INBOUND")} data-testid="button-new-ticket">
             <Plus className="w-4 h-4 mr-2" />
