@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Columns3, GripVertical, Eye, EyeOff, LayoutGrid, Save, Pencil, Trash2, Check, X, ArrowUp, ArrowDown, ChevronDown, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Columns3, GripVertical, Eye, EyeOff, LayoutGrid, Save, Pencil, Trash2, Check, X, ArrowUp, ArrowDown, ChevronDown, Search, Star } from "lucide-react";
 import { apiGet } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
@@ -124,6 +124,18 @@ function loadViews(direction: string): SavedView[] {
 
 function saveViews(direction: string, views: SavedView[]) {
   localStorage.setItem(`ticketViews_${direction}`, JSON.stringify(views));
+}
+
+function loadDefaultViewId(direction: string): string | null {
+  return localStorage.getItem(`ticketDefaultView_${direction}`);
+}
+
+function saveDefaultViewId(direction: string, id: string | null) {
+  if (id) {
+    localStorage.setItem(`ticketDefaultView_${direction}`, id);
+  } else {
+    localStorage.removeItem(`ticketDefaultView_${direction}`);
+  }
 }
 
 function loadActiveViewId(direction: string): string | null {
@@ -311,6 +323,7 @@ function ViewsPanel({ direction, currentColumns, currentSortBy, currentSortOrder
   const [open, setOpen] = useState(false);
   const [views, setViews] = useState<SavedView[]>(() => loadViews(direction));
   const [activeViewId, setActiveViewId] = useState<string | null>(() => loadActiveViewId(direction));
+  const [defaultViewId, setDefaultViewId] = useState<string | null>(() => loadDefaultViewId(direction));
   const [saving, setSaving] = useState(false);
   const [newName, setNewName] = useState("");
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -362,6 +375,16 @@ function ViewsPanel({ direction, currentColumns, currentSortBy, currentSortOrder
     setOpen(false);
   };
 
+  const handleToggleDefault = (id: string) => {
+    if (defaultViewId === id) {
+      setDefaultViewId(null);
+      saveDefaultViewId(direction, null);
+    } else {
+      setDefaultViewId(id);
+      saveDefaultViewId(direction, id);
+    }
+  };
+
   const handleDeleteView = (id: string) => {
     const updated = views.filter(v => v.id !== id);
     setViews(updated);
@@ -369,6 +392,10 @@ function ViewsPanel({ direction, currentColumns, currentSortBy, currentSortOrder
     if (activeViewId === id) {
       setActiveViewId(null);
       saveActiveViewId(direction, null);
+    }
+    if (defaultViewId === id) {
+      setDefaultViewId(null);
+      saveDefaultViewId(direction, null);
     }
   };
 
@@ -462,15 +489,25 @@ function ViewsPanel({ direction, currentColumns, currentSortBy, currentSortOrder
                     <button
                       type="button"
                       onClick={() => handleSelectView(view)}
-                      className="flex-1 text-left truncate font-medium"
+                      className="flex-1 text-left truncate font-medium flex items-center gap-1"
                       data-testid={`button-select-view-${view.id}`}
                     >
+                      {defaultViewId === view.id && <Star className="w-3 h-3 text-amber-500 flex-shrink-0" fill="currentColor" />}
                       {view.name}
                       <span className="text-xs text-slate-400 ml-1">
                         ({view.columns.length} cols{view.sortBy ? ", sorted" : ""}{view.columnFilters && Object.values(view.columnFilters).some(v => v) ? ", filtered" : ""})
                       </span>
                     </button>
                     <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleDefault(view.id)}
+                        title={defaultViewId === view.id ? "Remove as default" : "Set as default"}
+                        className={cn("p-1 rounded", defaultViewId === view.id ? "text-amber-500 hover:text-amber-600 hover:bg-amber-50" : "text-slate-400 hover:text-amber-500 hover:bg-amber-50")}
+                        data-testid={`button-default-view-${view.id}`}
+                      >
+                        <Star className="w-3.5 h-3.5" fill={defaultViewId === view.id ? "currentColor" : "none"} />
+                      </button>
                       <button
                         type="button"
                         onClick={() => handleUpdateView(view)}
@@ -677,6 +714,27 @@ export default function TicketTable({ direction }: { direction: "INBOUND" | "OUT
   const [sortBy, setSortBy] = useState<string | null>("id");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const activeId = loadActiveViewId(direction);
+    const defaultId = loadDefaultViewId(direction);
+    const viewIdToApply = activeId || defaultId;
+    if (viewIdToApply) {
+      const views = loadViews(direction);
+      const view = views.find(v => v.id === viewIdToApply);
+      if (view) {
+        setVisibleColumns(view.columns);
+        saveColumnConfig(direction, view.columns);
+        setSortBy(view.sortBy ?? null);
+        setSortOrder(view.sortOrder ?? "desc");
+        setColumnFilters(view.columnFilters ?? {});
+        setStatusFilter(view.statusFilter ?? "All");
+        if (!activeId && defaultId) {
+          saveActiveViewId(direction, defaultId);
+        }
+      }
+    }
+  }, [direction]);
 
   const debouncedColumnFilters = useDebounce(columnFilters, 400);
   const activeFilterCount = Object.values(columnFilters).filter(v => v.length > 0).length;
