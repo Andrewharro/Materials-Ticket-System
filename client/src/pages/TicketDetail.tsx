@@ -87,6 +87,11 @@ export default function TicketDetail() {
     queryFn: () => apiGet<any[]>("/api/admin/subcontractors"),
   });
 
+  const { data: warehousesList } = useQuery({
+    queryKey: ["warehouses"],
+    queryFn: () => apiGet<any[]>("/api/admin/warehouses"),
+  });
+
   const [form, setForm] = useState<any>({ ...emptyForm });
   const [items, setItems] = useState<TicketItemRow[]>([]);
   const [itemsExpanded, setItemsExpanded] = useState(false);
@@ -603,10 +608,6 @@ export default function TicketDetail() {
                   <Label>State *</Label>
                   <Input value={form.state} onChange={e => setForm({ ...form, state: e.target.value })} disabled={!canEdit} data-testid="input-state" />
                 </div>
-                <div className="space-y-2">
-                  <Label>Warehouse</Label>
-                  <Input value={form.warehouse} onChange={e => setForm({ ...form, warehouse: e.target.value })} disabled={!canEdit} data-testid="input-warehouse" />
-                </div>
               </div>
             </CardContent>
           </Card>
@@ -678,6 +679,19 @@ export default function TicketDetail() {
                     <SelectContent>
                       <SelectItem value="Delivery">Delivery</SelectItem>
                       <SelectItem value="Pickup from Warehouse">Pickup from Warehouse</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Warehouse</Label>
+                  <Select value={form.warehouse || ""} onValueChange={v => setForm({ ...form, warehouse: v })} disabled={!canEdit}>
+                    <SelectTrigger data-testid="select-warehouse">
+                      <SelectValue placeholder="Select warehouse..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(warehousesList || []).map((wh: any) => (
+                        <SelectItem key={wh.id} value={wh.name}>{wh.name}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
