@@ -233,7 +233,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/users", requireAuth, requireRole("ADMIN"), async (req, res) => {
     try {
-      const { email, firstName, lastName, role, password } = req.body;
+      const { email, firstName, lastName, role, password, subcontractorId } = req.body;
       if (!email || !firstName || !lastName) {
         return res.status(400).json({ message: "Email, firstName, lastName are required" });
       }
@@ -247,6 +247,7 @@ export async function registerRoutes(
         firstName,
         lastName,
         role: role || "USER",
+        subcontractorId: subcontractorId || null,
         passwordHash,
         isActive: true,
       });

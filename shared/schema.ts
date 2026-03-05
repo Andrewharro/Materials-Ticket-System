@@ -16,6 +16,7 @@ export const users = pgTable("users", {
   firstName: varchar("first_name", { length: 255 }).notNull(),
   lastName: varchar("last_name", { length: 255 }).notNull(),
   role: varchar("role", { length: 50 }).notNull().default("USER"),
+  subcontractorId: integer("subcontractor_id"),
   isActive: boolean("is_active").notNull().default(true),
   passwordHash: text("password_hash"),
   createdAt: timestamp("created_at").notNull().defaultNow(),

@@ -23,7 +23,7 @@ export default function SettingsUsers() {
 
   const [showUserDialog, setShowUserDialog] = useState(false);
   const [editUser, setEditUser] = useState<any>(null);
-  const [userForm, setUserForm] = useState({ email: "", firstName: "", lastName: "", role: "USER", password: "" });
+  const [userForm, setUserForm] = useState({ email: "", firstName: "", lastName: "", role: "USER", password: "", subcontractorId: "" });
 
   const [showRoleDialog, setShowRoleDialog] = useState(false);
   const [editRole, setEditRole] = useState<any>(null);
@@ -39,15 +39,22 @@ export default function SettingsUsers() {
     queryFn: () => apiGet<any[]>("/api/admin/roles"),
   });
 
+  const { data: subcontractors = [] } = useQuery({
+    queryKey: ["admin-subcontractors"],
+    queryFn: () => apiGet<any[]>("/api/admin/subcontractors"),
+  });
+
+  const isSubcontractorRole = (roleKey: string) => roleKey.toUpperCase() === "SUBCONTRACTOR";
+
   const openCreateUser = () => {
     setEditUser(null);
-    setUserForm({ email: "", firstName: "", lastName: "", role: "USER", password: "" });
+    setUserForm({ email: "", firstName: "", lastName: "", role: "USER", password: "", subcontractorId: "" });
     setShowUserDialog(true);
   };
 
   const openEditUser = (user: any) => {
     setEditUser(user);
-    setUserForm({ email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role, password: "" });
+    setUserForm({ email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role, password: "", subcontractorId: user.subcontractorId ? String(user.subcontractorId) : "" });
     setShowUserDialog(true);
   };
 
@@ -55,11 +62,14 @@ export default function SettingsUsers() {
     try {
       if (editUser) {
         const data: any = { firstName: userForm.firstName, lastName: userForm.lastName, role: userForm.role };
+        data.subcontractorId = isSubcontractorRole(userForm.role) && userForm.subcontractorId ? parseInt(userForm.subcontractorId) : null;
         if (userForm.password) data.password = userForm.password;
         await apiPatch(`/api/admin/users/${editUser.id}`, data);
         toast({ title: "User updated" });
       } else {
-        await apiPost("/api/admin/users", userForm);
+        const payload: any = { ...userForm };
+        payload.subcontractorId = isSubcontractorRole(userForm.role) && userForm.subcontractorId ? parseInt(userForm.subcontractorId) : null;
+        await apiPost("/api/admin/users", payload);
         toast({ title: "User created" });
       }
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
@@ -158,13 +168,14 @@ export default function SettingsUsers() {
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
+                  <TableHead>Company</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loadingUsers ? (
-                  <TableRow><TableCell colSpan={5} className="text-center py-8 text-slate-500">Loading...</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-slate-500">Loading...</TableCell></TableRow>
                 ) : users.map((user: any) => (
                   <TableRow key={user.id} data-testid={`row-user-${user.id}`}>
                     <TableCell className="font-medium">{user.firstName} {user.lastName}</TableCell>
@@ -177,6 +188,9 @@ export default function SettingsUsers() {
                       }>
                         {user.role}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="text-slate-500">
+                      {user.subcontractorId ? (subcontractors.find((sc: any) => sc.id === user.subcontractorId)?.name || "—") : "—"}
                     </TableCell>
                     <TableCell>
                       <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
@@ -282,7 +296,7 @@ export default function SettingsUsers() {
             </div>
             <div className="space-y-2">
               <Label>Role</Label>
-              <Select value={userForm.role} onValueChange={v => setUserForm({ ...userForm, role: v })}>
+              <Select value={userForm.role} onValueChange={v => setUserForm({ ...userForm, role: v, subcontractorId: isSubcontractorRole(v) ? userForm.subcontractorId : "" })}>
                 <SelectTrigger data-testid="select-user-role"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {roles.length > 0 ? roles.map((r: any) => (
@@ -297,6 +311,19 @@ export default function SettingsUsers() {
                 </SelectContent>
               </Select>
             </div>
+            {isSubcontractorRole(userForm.role) && (
+              <div className="space-y-2">
+                <Label>Subcontractor Company</Label>
+                <Select value={userForm.subcontractorId} onValueChange={v => setUserForm({ ...userForm, subcontractorId: v })}>
+                  <SelectTrigger data-testid="select-user-subcontractor"><SelectValue placeholder="Select a subcontractor..." /></SelectTrigger>
+                  <SelectContent>
+                    {subcontractors.map((sc: any) => (
+                      <SelectItem key={sc.id} value={String(sc.id)}>{sc.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>{editUser ? "New Password (leave blank to keep)" : "Password"}</Label>
               <Input type="password" value={userForm.password} onChange={e => setUserForm({ ...userForm, password: e.target.value })} data-testid="input-user-password" />
