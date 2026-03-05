@@ -251,6 +251,7 @@ export class DatabaseStorage implements IStorage {
       .select({
         ...getTableColumns(tickets),
         itemCount: sql<number>`(SELECT COUNT(*)::int FROM ticket_items WHERE ticket_items.ticket_id = tickets.id)`,
+        itemServiceOrders: sql<string>`(SELECT STRING_AGG(DISTINCT ticket_items.service_order, ', ' ORDER BY ticket_items.service_order) FROM ticket_items WHERE ticket_items.ticket_id = tickets.id AND ticket_items.service_order IS NOT NULL AND ticket_items.service_order <> '')`,
       })
       .from(tickets).where(whereClause).orderBy(orderClause).limit(pageSize).offset((page - 1) * pageSize);
 

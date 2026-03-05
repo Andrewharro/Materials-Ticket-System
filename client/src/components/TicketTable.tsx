@@ -17,6 +17,7 @@ interface ColumnDef {
 const ALL_COLUMNS: ColumnDef[] = [
   { key: "id", label: "Ticket ID" },
   { key: "itemCount", label: "No. of Items" },
+  { key: "itemServiceOrders", label: "Item Service Orders" },
   { key: "status", label: "Status" },
   { key: "serviceOrder", label: "Service Order Ticket" },
   { key: "projectName", label: "Project" },
@@ -51,7 +52,7 @@ const ALL_COLUMNS: ColumnDef[] = [
   { key: "closedAt", label: "Closed" },
 ];
 
-const DEFAULT_VISIBLE = ["id", "itemCount", "status", "serviceOrder", "projectName", "state", "ownerName", "assignedToName"];
+const DEFAULT_VISIBLE = ["id", "itemCount", "itemServiceOrders", "status", "serviceOrder", "projectName", "state", "ownerName", "assignedToName"];
 
 interface SavedView {
   id: string;
