@@ -86,7 +86,7 @@ export interface IStorage {
   deleteAppRole(id: number): Promise<void>;
 
   saveTicketWithItems(ticketData: Partial<InsertTicket> & { id?: number }, itemsData: (InsertTicketItem & { id?: number })[]): Promise<{ ticket: Ticket; items: TicketItem[] }>;
-  getDashboardStats(direction?: string, status?: string): Promise<{ byProject: { name: string; count: number }[]; byMonth: { month: string; count: number }[] }>;
+  getDashboardStats(direction?: string, status?: string): Promise<{ byProject: { name: string; count: number }[]; byMonth: { month: string; count: number; items: number }[] }>;
   getDistinctColumnValues(direction: string, column: string, search?: string, subcontractorId?: number): Promise<string[]>;
 }
 
@@ -492,7 +492,7 @@ export class DatabaseStorage implements IStorage {
       return { ticket, items: savedItems };
     });
   }
-  async getDashboardStats(direction?: string, status?: string): Promise<{ byProject: { name: string; count: number }[]; byMonth: { month: string; count: number }[] }> {
+  async getDashboardStats(direction?: string, status?: string): Promise<{ byProject: { name: string; count: number }[]; byMonth: { month: string; count: number; items: number }[] }> {
     const conditions: any[] = [];
     if (direction) conditions.push(eq(tickets.direction, direction as any));
     if (status) conditions.push(eq(tickets.status, status));
@@ -508,16 +508,18 @@ export class DatabaseStorage implements IStorage {
     const monthRows = await db
       .select({
         month: sql<string>`TO_CHAR(${tickets.createdAt}, 'YYYY-MM')`,
-        count: count(),
+        count: sql<number>`COUNT(DISTINCT ${tickets.id})`,
+        items: sql<number>`COUNT(${ticketItems.id})`,
       })
       .from(tickets)
+      .leftJoin(ticketItems, eq(ticketItems.ticketId, tickets.id))
       .where(whereClause)
       .groupBy(sql`TO_CHAR(${tickets.createdAt}, 'YYYY-MM')`)
       .orderBy(asc(sql`TO_CHAR(${tickets.createdAt}, 'YYYY-MM')`));
 
     return {
       byProject: projectRows.map(r => ({ name: r.name || "Unknown", count: Number(r.count) })),
-      byMonth: monthRows.map(r => ({ month: r.month, count: Number(r.count) })),
+      byMonth: monthRows.map(r => ({ month: r.month, count: Number(r.count), items: Number(r.items) })),
     };
   }
 

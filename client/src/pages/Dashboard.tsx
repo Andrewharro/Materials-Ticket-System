@@ -6,7 +6,7 @@ import { apiGet } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import {
   PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Line, ComposedChart,
 } from "recharts";
 
 type FilterKey = "inbound" | "outbound" | "new" | "open" | "onhold" | "closed" | null;
@@ -60,7 +60,7 @@ export default function Dashboard() {
 
   const { data: chartData } = useQuery({
     queryKey: ["dashboard-charts", activeFilter],
-    queryFn: () => apiGet<{ byProject: { name: string; count: number }[]; byMonth: { month: string; count: number }[] }>(
+    queryFn: () => apiGet<{ byProject: { name: string; count: number }[]; byMonth: { month: string; count: number; items: number }[] }>(
       `/api/dashboard/stats?${chartParams.toString()}`
     ),
   });
@@ -174,20 +174,23 @@ export default function Dashboard() {
 
         <Card className="shadow-sm border-slate-200">
           <CardHeader>
-            <CardTitle className="text-lg">Tickets Created per Month</CardTitle>
+            <CardTitle className="text-lg">Tickets & Items per Month</CardTitle>
           </CardHeader>
           <CardContent>
             {monthData.length === 0 ? (
               <p className="text-slate-400 text-center py-12">No data</p>
             ) : (
               <ResponsiveContainer width="100%" height={350}>
-                <BarChart data={monthData}>
+                <ComposedChart data={monthData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="label" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={60} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-                  <Tooltip formatter={(value: number) => [value, "Tickets"]} />
-                  <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                </BarChart>
+                  <YAxis yAxisId="left" allowDecimals={false} tick={{ fontSize: 12 }} label={{ value: "Tickets", angle: -90, position: "insideLeft", style: { fontSize: 12, fill: "#3b82f6" } }} />
+                  <YAxis yAxisId="right" orientation="right" allowDecimals={false} tick={{ fontSize: 12 }} label={{ value: "Items", angle: 90, position: "insideRight", style: { fontSize: 12, fill: "#f59e0b" } }} />
+                  <Tooltip />
+                  <Legend />
+                  <Bar yAxisId="left" dataKey="count" name="Tickets" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                  <Line yAxisId="right" type="monotone" dataKey="items" name="Items" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
+                </ComposedChart>
               </ResponsiveContainer>
             )}
           </CardContent>
