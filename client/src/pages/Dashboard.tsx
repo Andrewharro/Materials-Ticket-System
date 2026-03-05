@@ -266,6 +266,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-6 text-xs text-slate-400 pt-1">
               <span className="flex items-center gap-1"><FileText className="w-3.5 h-3.5" /> Tickets</span>
               <span className="flex items-center gap-1"><Package className="w-3.5 h-3.5" /> Items</span>
+              <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> Avg Days Open</span>
             </div>
           </CardHeader>
           <CardContent className="pt-0">
@@ -303,6 +304,11 @@ export default function Dashboard() {
                         <div className="text-right">
                           <p className="text-sm font-bold text-fuchsia-600">{person.items.toLocaleString()}</p>
                           <p className="text-[10px] text-fuchsia-400 uppercase tracking-wider">items</p>
+                        </div>
+                        <div className="w-px h-8 bg-violet-200/60" />
+                        <div className="text-right">
+                          <p className="text-sm font-bold text-amber-600">{person.avgDaysOpen ?? 0}</p>
+                          <p className="text-[10px] text-amber-400 uppercase tracking-wider">avg days</p>
                         </div>
                       </div>
                     </div>

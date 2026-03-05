@@ -86,7 +86,7 @@ export interface IStorage {
   deleteAppRole(id: number): Promise<void>;
 
   saveTicketWithItems(ticketData: Partial<InsertTicket> & { id?: number }, itemsData: (InsertTicketItem & { id?: number })[]): Promise<{ ticket: Ticket; items: TicketItem[] }>;
-  getDashboardStats(direction?: string, status?: string, projectName?: string): Promise<{ byProject: { name: string; count: number; items: number }[]; byAssignee: { name: string; count: number; items: number }[]; byMonth: { month: string; count: number; items: number }[] }>;
+  getDashboardStats(direction?: string, status?: string, projectName?: string): Promise<{ byProject: { name: string; count: number; items: number }[]; byAssignee: { name: string; count: number; items: number; avgDaysOpen: number }[]; byMonth: { month: string; count: number; items: number }[] }>;
   getDistinctColumnValues(direction: string, column: string, search?: string, subcontractorId?: number): Promise<string[]>;
 }
 
@@ -492,7 +492,7 @@ export class DatabaseStorage implements IStorage {
       return { ticket, items: savedItems };
     });
   }
-  async getDashboardStats(direction?: string, status?: string, projectName?: string): Promise<{ byProject: { name: string; count: number; items: number }[]; byAssignee: { name: string; count: number; items: number }[]; byMonth: { month: string; count: number; items: number }[] }> {
+  async getDashboardStats(direction?: string, status?: string, projectName?: string): Promise<{ byProject: { name: string; count: number; items: number }[]; byAssignee: { name: string; count: number; items: number; avgDaysOpen: number }[]; byMonth: { month: string; count: number; items: number }[] }> {
     const conditions: any[] = [];
     if (direction) conditions.push(eq(tickets.direction, direction as any));
     if (status) conditions.push(eq(tickets.status, status));
@@ -516,6 +516,7 @@ export class DatabaseStorage implements IStorage {
         name: tickets.assignedToName,
         count: sql<number>`COUNT(DISTINCT ${tickets.id})`,
         items: sql<number>`COUNT(${ticketItems.id})`,
+        avgDaysOpen: sql<number>`ROUND(AVG(EXTRACT(EPOCH FROM (COALESCE(${tickets.closedAt}, NOW()) - ${tickets.createdAt})) / 86400)::numeric, 1)`,
       })
       .from(tickets)
       .leftJoin(ticketItems, eq(ticketItems.ticketId, tickets.id))
@@ -537,7 +538,7 @@ export class DatabaseStorage implements IStorage {
 
     return {
       byProject: projectRows.map(r => ({ name: r.name || "Unknown", count: Number(r.count), items: Number(r.items) })),
-      byAssignee: assigneeRows.map(r => ({ name: r.name || "Unassigned", count: Number(r.count), items: Number(r.items) })),
+      byAssignee: assigneeRows.map(r => ({ name: r.name || "Unassigned", count: Number(r.count), items: Number(r.items), avgDaysOpen: Number(r.avgDaysOpen || 0) })),
       byMonth: monthRows.map(r => ({ month: r.month, count: Number(r.count), items: Number(r.items) })),
     };
   }
