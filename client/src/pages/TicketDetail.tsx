@@ -13,7 +13,10 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Send, Plus, Trash2, ArrowLeft, Maximize2, Minimize2, X } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Send, Plus, Trash2, ArrowLeft, Maximize2, Minimize2, X, Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { apiGet, apiPost, getStoredUser } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 
@@ -87,6 +90,7 @@ export default function TicketDetail() {
   const [form, setForm] = useState<any>({ ...emptyForm });
   const [items, setItems] = useState<TicketItemRow[]>([]);
   const [itemsExpanded, setItemsExpanded] = useState(false);
+  const [scOpen, setScOpen] = useState(false);
   const [chatExpanded, setChatExpanded] = useState(false);
   const [colWidths, setColWidths] = useState<Record<string, number>>({
     "#": 40, "Item Code": 130, "Description": 280, "UOM": 65, "Qty": 65,
@@ -615,34 +619,51 @@ export default function TicketDetail() {
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label>Subcontractor</Label>
-                  <Select
-                    value={form.subcontractorName || ""}
-                    onValueChange={v => {
-                      const sc = (subcontractorsList || []).find((s: any) => s.name === v);
-                      if (sc) {
-                        setForm({
-                          ...form,
-                          subcontractorName: sc.name,
-                          subcontractorEmail: sc.email || "",
-                          receiversName: sc.receiversName || form.receiversName,
-                          receiversPhone: sc.receiversContact || form.receiversPhone,
-                          deliveryAddress: sc.address || form.deliveryAddress,
-                        });
-                      } else {
-                        setForm({ ...form, subcontractorName: v });
-                      }
-                    }}
-                    disabled={!canEdit}
-                  >
-                    <SelectTrigger data-testid="select-subcontractor">
-                      <SelectValue placeholder="Select subcontractor..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(subcontractorsList || []).map((sc: any) => (
-                        <SelectItem key={sc.id} value={sc.name}>{sc.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Popover open={scOpen} onOpenChange={setScOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={scOpen}
+                        className="w-full justify-between font-normal"
+                        disabled={!canEdit}
+                        data-testid="select-subcontractor"
+                      >
+                        {form.subcontractorName || "Select subcontractor..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search subcontractor..." />
+                        <CommandList className="max-h-[250px]">
+                          <CommandEmpty>No subcontractor found.</CommandEmpty>
+                          <CommandGroup>
+                            {(subcontractorsList || []).map((sc: any) => (
+                              <CommandItem
+                                key={sc.id}
+                                value={sc.name}
+                                onSelect={() => {
+                                  setForm({
+                                    ...form,
+                                    subcontractorName: sc.name,
+                                    subcontractorEmail: sc.email || "",
+                                    receiversName: sc.receiversName || form.receiversName,
+                                    receiversPhone: sc.receiversContact || form.receiversPhone,
+                                    deliveryAddress: sc.address || form.deliveryAddress,
+                                  });
+                                  setScOpen(false);
+                                }}
+                              >
+                                <Check className={cn("mr-2 h-4 w-4", form.subcontractorName === sc.name ? "opacity-100" : "opacity-0")} />
+                                {sc.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <div className="space-y-2">
                   <Label>Subcontractor Email</Label>
