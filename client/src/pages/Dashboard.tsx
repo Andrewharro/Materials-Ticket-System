@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Inbox, Send, Clock, CheckCircle, X, Package, FileText, UserCheck, TrendingUp, Layers } from "lucide-react";
+import { Inbox, Send, Clock, CheckCircle, X, Package, FileText, UserCheck, TrendingUp, Layers, BarChart3 } from "lucide-react";
 import { apiGet } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import {
@@ -127,6 +127,7 @@ export default function Dashboard() {
   const totalTickets = monthData.reduce((sum, m) => sum + m.count, 0);
   const totalItems = monthData.reduce((sum, m) => sum + m.items, 0);
   const avgTicketsPerMonth = monthData.length > 0 ? Math.round(totalTickets / monthData.length) : 0;
+  const avgItemsPerMonth = monthData.length > 0 ? Math.round(totalItems / monthData.length) : 0;
   const avgItemsPerTicket = totalTickets > 0 ? (totalItems / totalTickets).toFixed(1) : "0";
 
   return (
@@ -313,55 +314,70 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 mb-6">
-        <Card className="shadow-sm border-slate-200 xl:col-span-3">
-          <CardHeader>
-            <CardTitle className="text-lg">Tickets & Items per Month</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {monthData.length === 0 ? (
-              <p className="text-slate-400 text-center py-12">No data</p>
-            ) : (
-              <ResponsiveContainer width="100%" height={400}>
-                <ComposedChart data={monthData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="label" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={60} />
-                  <YAxis yAxisId="left" allowDecimals={false} tick={{ fontSize: 12 }} label={{ value: "Tickets", angle: -90, position: "insideLeft", style: { fontSize: 12, fill: "#3b82f6" } }} />
-                  <YAxis yAxisId="right" orientation="right" allowDecimals={false} tick={{ fontSize: 12 }} label={{ value: "Items", angle: 90, position: "insideRight", style: { fontSize: 12, fill: "#f59e0b" } }} />
-                  <Tooltip />
-                  <Legend />
-                  <Bar yAxisId="left" dataKey="count" name="Tickets" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                  <Line yAxisId="right" type="monotone" dataKey="items" name="Items" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
-                </ComposedChart>
-              </ResponsiveContainer>
-            )}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <Card className="shadow-sm border-slate-200 bg-gradient-to-br from-emerald-50/50 to-teal-50/30">
+          <CardContent className="p-5 flex items-center gap-4">
+            <div className="p-3 rounded-full bg-emerald-100 shrink-0">
+              <TrendingUp className="w-5 h-5 text-emerald-600" />
+            </div>
+            <div>
+              <p className="text-[11px] font-medium text-emerald-600 uppercase tracking-wider">Avg Tickets / Month</p>
+              <h3 className="text-3xl font-bold text-emerald-700 mt-0.5" data-testid="text-avg-tickets-month">{avgTicketsPerMonth.toLocaleString()}</h3>
+              <p className="text-xs text-slate-400 mt-0.5">across {monthData.length} month{monthData.length !== 1 ? "s" : ""}</p>
+            </div>
           </CardContent>
         </Card>
 
-        <div className="flex flex-col gap-6">
-          <Card className="shadow-sm border-slate-200 bg-gradient-to-br from-emerald-50/50 to-teal-50/30 flex-1">
-            <CardContent className="p-6 flex flex-col items-center justify-center h-full text-center">
-              <div className="p-3 rounded-full bg-emerald-100 mb-4">
-                <TrendingUp className="w-6 h-6 text-emerald-600" />
-              </div>
-              <p className="text-xs font-medium text-emerald-600 uppercase tracking-wider mb-2">Avg Tickets / Month</p>
-              <h3 className="text-4xl font-bold text-emerald-700" data-testid="text-avg-tickets-month">{avgTicketsPerMonth.toLocaleString()}</h3>
-              <p className="text-xs text-slate-400 mt-2">across {monthData.length} month{monthData.length !== 1 ? "s" : ""}</p>
-            </CardContent>
-          </Card>
+        <Card className="shadow-sm border-slate-200 bg-gradient-to-br from-amber-50/50 to-orange-50/30">
+          <CardContent className="p-5 flex items-center gap-4">
+            <div className="p-3 rounded-full bg-amber-100 shrink-0">
+              <BarChart3 className="w-5 h-5 text-amber-600" />
+            </div>
+            <div>
+              <p className="text-[11px] font-medium text-amber-600 uppercase tracking-wider">Avg Items / Month</p>
+              <h3 className="text-3xl font-bold text-amber-700 mt-0.5" data-testid="text-avg-items-month">{avgItemsPerMonth.toLocaleString()}</h3>
+              <p className="text-xs text-slate-400 mt-0.5">{totalItems.toLocaleString()} items total</p>
+            </div>
+          </CardContent>
+        </Card>
 
-          <Card className="shadow-sm border-slate-200 bg-gradient-to-br from-cyan-50/50 to-sky-50/30 flex-1">
-            <CardContent className="p-6 flex flex-col items-center justify-center h-full text-center">
-              <div className="p-3 rounded-full bg-cyan-100 mb-4">
-                <Layers className="w-6 h-6 text-cyan-600" />
-              </div>
-              <p className="text-xs font-medium text-cyan-600 uppercase tracking-wider mb-2">Avg Items / Ticket</p>
-              <h3 className="text-4xl font-bold text-cyan-700" data-testid="text-avg-items-ticket">{avgItemsPerTicket}</h3>
-              <p className="text-xs text-slate-400 mt-2">{totalItems.toLocaleString()} items total</p>
-            </CardContent>
-          </Card>
-        </div>
+        <Card className="shadow-sm border-slate-200 bg-gradient-to-br from-cyan-50/50 to-sky-50/30">
+          <CardContent className="p-5 flex items-center gap-4">
+            <div className="p-3 rounded-full bg-cyan-100 shrink-0">
+              <Layers className="w-5 h-5 text-cyan-600" />
+            </div>
+            <div>
+              <p className="text-[11px] font-medium text-cyan-600 uppercase tracking-wider">Avg Items / Ticket</p>
+              <h3 className="text-3xl font-bold text-cyan-700 mt-0.5" data-testid="text-avg-items-ticket">{avgItemsPerTicket}</h3>
+              <p className="text-xs text-slate-400 mt-0.5">{totalTickets.toLocaleString()} tickets total</p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
+
+      <Card className="shadow-sm border-slate-200 mb-6">
+        <CardHeader>
+          <CardTitle className="text-lg">Tickets & Items per Month</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {monthData.length === 0 ? (
+            <p className="text-slate-400 text-center py-12">No data</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={400}>
+              <ComposedChart data={monthData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="label" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={60} />
+                <YAxis yAxisId="left" allowDecimals={false} tick={{ fontSize: 12 }} label={{ value: "Tickets", angle: -90, position: "insideLeft", style: { fontSize: 12, fill: "#3b82f6" } }} />
+                <YAxis yAxisId="right" orientation="right" allowDecimals={false} tick={{ fontSize: 12 }} label={{ value: "Items", angle: 90, position: "insideRight", style: { fontSize: 12, fill: "#f59e0b" } }} />
+                <Tooltip />
+                <Legend />
+                <Bar yAxisId="left" dataKey="count" name="Tickets" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                <Line yAxisId="right" type="monotone" dataKey="items" name="Items" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
