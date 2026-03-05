@@ -250,7 +250,7 @@ export class DatabaseStorage implements IStorage {
     const rows = await db
       .select({
         ...getTableColumns(tickets),
-        itemCount: sql<number>`(SELECT COUNT(*)::int FROM ticket_items WHERE ticket_items.ticket_id = ${tickets.id})`,
+        itemCount: sql<number>`(SELECT COUNT(*)::int FROM ticket_items WHERE ticket_items.ticket_id = tickets.id)`,
       })
       .from(tickets).where(whereClause).orderBy(orderClause).limit(pageSize).offset((page - 1) * pageSize);
 
