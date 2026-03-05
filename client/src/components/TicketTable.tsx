@@ -787,11 +787,13 @@ export default function TicketTable({ direction }: { direction: "INBOUND" | "OUT
       </div>
 
       <div className="bg-white rounded-md border border-slate-200 overflow-hidden shadow-sm overflow-x-auto">
-        <Table>
+        <Table className="table-fixed w-full">
           <TableHeader className="bg-slate-50">
             <TableRow>
-              {visibleColumns.map(key => (
-                <TableHead key={key} className="whitespace-nowrap p-0">
+              {visibleColumns.map(key => {
+                const widths: Record<string, string> = { id: "90px", itemCount: "70px", status: "90px", priority: "80px", state: "60px" };
+                return (
+                <TableHead key={key} className="whitespace-nowrap p-0 overflow-hidden" style={{ width: widths[key] || "150px" }}>
                   <ColumnHeaderDropdown
                     columnKey={key}
                     direction={direction}
@@ -802,7 +804,8 @@ export default function TicketTable({ direction }: { direction: "INBOUND" | "OUT
                     onFilter={handleColumnFilter}
                   />
                 </TableHead>
-              ))}
+                );
+              })}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -819,8 +822,10 @@ export default function TicketTable({ direction }: { direction: "INBOUND" | "OUT
             ) : tickets.map((ticket: any) => (
               <TableRow key={ticket.id} data-testid={`row-ticket-${ticket.id}`}>
                 {visibleColumns.map(key => (
-                  <TableCell key={key} className="whitespace-nowrap">
-                    {formatCellValue(key, ticket)}
+                  <TableCell key={key} className="overflow-hidden text-ellipsis whitespace-nowrap max-w-0">
+                    <span className="block truncate" title={String(formatCellValue(key, ticket) ?? "")}>
+                      {formatCellValue(key, ticket)}
+                    </span>
                   </TableCell>
                 ))}
               </TableRow>
