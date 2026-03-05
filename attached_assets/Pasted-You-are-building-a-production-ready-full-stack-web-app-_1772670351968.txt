@@ -1,0 +1,91 @@
+You are building a production-ready full-stack web app in a single Replit project called “Materials Ticketing System”. This replaces a Microsoft Power Apps + SharePoint ticketing solution.
+
+Hard requirements
+- Create two top-level folders: /server and /client, plus /prisma and /scripts.
+- Frontend: React + TypeScript (Vite), Tailwind, React Router.
+- Backend: Node.js + Express, TypeScript, Prisma.
+- Database: PostgreSQL via DATABASE_URL env var.
+- Authentication: email + password login for v1 using bcrypt, with JWT stored in httpOnly cookie OR Authorization header (choose one and implement cleanly).
+- Role based access control (RBAC) enforced in BOTH API and UI.
+- Roles: USER, COORDINATOR, ADMIN.
+- Email notifications: Nodemailer with SMTP env vars. When a chat message is posted on a ticket, email the other party (creator vs assigned coordinator). If no coordinator assigned, email COORDINATOR_GROUP_EMAIL. Log email success/failure to the database.
+
+App navigation (left sidebar)
+- Dashboard
+- Inbound Tickets
+- Outbound Tickets
+- Settings (header, ADMIN only)
+  - Users & Roles
+  - Reference Data: Ticket Status, Departments, Department Techs, Subcontractors
+
+Ticketing behaviour
+- Tickets have direction: INBOUND or OUTBOUND.
+- Ticket queues:
+  - Inbound page shows tickets with direction=INBOUND.
+  - Outbound page shows tickets with direction=OUTBOUND.
+  - Both pages support server-side filtering + search:
+    - Status menu: All, New, In Progress, On Hold, Closed (map to statusKey enum if available; otherwise map to status string).
+    - Sort by ticket id desc.
+    - Dropdown filters: owner, assigned to, service order, state, project (each with “All” option).
+    - Search box: contains match (case-insensitive) across serviceOrder, ownerName, assignedToName, state, projectName; if search value is numeric also allow exact id match.
+- Ticket detail page:
+  - Route /tickets/:id
+  - Show editable ticket fields (based on role: USER can edit their own draft/new tickets; COORDINATOR/ADMIN can edit any).
+  - Include editable line items grid. Items belong to ticket and have same direction as ticket.
+  - Save performs ONE API call that upserts ticket + items in ONE DB transaction.
+  - Validation: state required, projectName required, at least one itemCode present.
+- Chat panel inside ticket:
+  - List messages oldest->newest.
+  - Post message creates TicketMessage row and triggers email notification and logs it.
+
+Data model requirements
+- Use Prisma and create these models: User, Ticket, TicketItem, TicketMessage, Subcontractor, Department, DepartmentTech, TicketStatus, AppSetting, EmailLog.
+- Include enums: UserRole, TicketDirection, TicketStatusKey.
+- Ticket has createdByUserId and assignedToUserId relations to User. Keep legacy fields ownerName/ownerEmail and assignedToName/assignedToEmail for compatibility/migration.
+- TicketItem is a single table with direction field (not separate inbound/outbound tables).
+
+Seed + admin
+- Provide prisma/seed.ts that creates:
+  - Default statuses: New, Open, On Hold, Closed, Not Assigned.
+  - Default admin user: admin@example.com / ChangeMe123! (hash the password).
+- Create a minimal login screen and protect routes.
+
+API endpoints (minimum)
+Auth:
+- POST /api/auth/login
+- POST /api/auth/logout
+- GET /api/auth/me
+
+Tickets:
+- GET /api/tickets (query params: direction, statusKey/status, filters, search, page, pageSize)
+- GET /api/tickets/:id (include items and messages)
+- POST /api/tickets (create)
+- POST /api/tickets/:id/save (transaction upsert ticket + items)
+Messages:
+- POST /api/tickets/:id/messages (create message + trigger email)
+Settings (ADMIN only):
+- CRUD /api/admin/users (set role, activate/deactivate)
+- CRUD /api/admin/statuses
+- CRUD /api/admin/departments
+- CRUD /api/admin/department-techs
+- CRUD /api/admin/subcontractors
+
+Project structure (must)
+- /server/src/index.ts (boot)
+- /server/src/prisma.ts (prisma client)
+- /server/src/middleware/auth.ts (JWT + role guard)
+- /server/src/routes/*.ts for auth, tickets, admin, messages
+- /server/src/services/emailService.ts
+- /client/src/App.tsx + router
+- /client/src/components/Sidebar.tsx
+- /client/src/pages/Dashboard.tsx, InboundTickets.tsx, OutboundTickets.tsx, TicketDetail.tsx, SettingsUsers.tsx, SettingsReferenceData.tsx, Login.tsx
+- /scripts/importSharePoint.ts (placeholder that reads xlsx and prints mapping steps; do not implement full import unless requested)
+
+Other requirements
+- Provide a root README.md with: setup, env vars, migrate/seed commands, run commands.
+- Provide a root .env.example with all env vars needed.
+- Use good error handling and return JSON errors with message.
+- Use AU spelling in UI labels where relevant (eg “Organisation” only if used).
+- Keep styling clean, readable, not flashy.
+
+Important: generate ALL source code files and configs required. After generation, list any manual steps required in README only (do not ask questions).
