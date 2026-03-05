@@ -388,74 +388,6 @@ export default function TicketDetail() {
           </Card>
 
           <Card className="shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle>Line Items</CardTitle>
-              {canEdit && (
-                <Button size="sm" variant="outline" onClick={addItem} data-testid="button-add-item">
-                  <Plus className="w-4 h-4 mr-1" /> Add Item
-                </Button>
-              )}
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Item Code</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>UOM</TableHead>
-                      <TableHead>Qty</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Service Order</TableHead>
-                      <TableHead>Comments</TableHead>
-                      <TableHead></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {items.map((item, i) => (
-                      <TableRow key={i} data-testid={`row-item-${i}`}>
-                        <TableCell>
-                          <Input value={item.itemCode} onChange={e => updateItem(i, "itemCode", e.target.value)} className="h-8" disabled={!canEdit} data-testid={`input-item-code-${i}`} />
-                        </TableCell>
-                        <TableCell>
-                          <Input value={item.description} onChange={e => updateItem(i, "description", e.target.value)} className="h-8" disabled={!canEdit} />
-                        </TableCell>
-                        <TableCell>
-                          <Input value={item.uom} onChange={e => updateItem(i, "uom", e.target.value)} className="h-8 w-20" disabled={!canEdit} />
-                        </TableCell>
-                        <TableCell>
-                          <Input value={item.quantity} type="number" onChange={e => updateItem(i, "quantity", e.target.value)} className="h-8 w-24" disabled={!canEdit} />
-                        </TableCell>
-                        <TableCell>
-                          <Input value={item.status} onChange={e => updateItem(i, "status", e.target.value)} className="h-8" disabled={!canEdit} />
-                        </TableCell>
-                        <TableCell>
-                          <Input value={item.serviceOrder} onChange={e => updateItem(i, "serviceOrder", e.target.value)} className="h-8" disabled={!canEdit} data-testid={`input-item-service-order-${i}`} />
-                        </TableCell>
-                        <TableCell>
-                          <Input value={item.comments} onChange={e => updateItem(i, "comments", e.target.value)} className="h-8" disabled={!canEdit} data-testid={`input-item-comments-${i}`} />
-                        </TableCell>
-                        <TableCell>
-                          {canEdit && (
-                            <Button variant="ghost" size="icon" onClick={() => removeItem(i)} className="h-8 w-8 text-slate-400 hover:text-red-600" data-testid={`button-remove-item-${i}`}>
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {items.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={8} className="text-center py-4 text-slate-500">No line items were imported for this ticket from the SharePoint data source. Click "Add Item" to add items manually.</TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-sm">
             <CardHeader>
               <CardTitle>Internal Comments</CardTitle>
             </CardHeader>
@@ -556,6 +488,120 @@ export default function TicketDetail() {
             </CardContent>
           </Card>
         </div>
+      </div>
+
+      <div className="mt-8">
+        <Card className="shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle>Line Items ({items.length})</CardTitle>
+            {canEdit && (
+              <Button size="sm" variant="outline" onClick={addItem} data-testid="button-add-item">
+                <Plus className="w-4 h-4 mr-1" /> Add Item
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent className="p-0">
+            {items.length === 0 ? (
+              <p className="text-center py-8 text-slate-500 px-6">No line items were imported for this ticket from the SharePoint data source. Click "Add Item" to add items manually.</p>
+            ) : (
+              <div className="overflow-x-auto border-t border-slate-200">
+                <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200">
+                      <th className="text-left font-semibold text-slate-600 px-3 py-2 border-r border-slate-200 w-8 text-center">#</th>
+                      <th className="text-left font-semibold text-slate-600 px-3 py-2 border-r border-slate-200" style={{ minWidth: "120px" }}>Item Code</th>
+                      <th className="text-left font-semibold text-slate-600 px-3 py-2 border-r border-slate-200" style={{ minWidth: "200px" }}>Description</th>
+                      <th className="text-left font-semibold text-slate-600 px-3 py-2 border-r border-slate-200" style={{ minWidth: "60px" }}>UOM</th>
+                      <th className="text-right font-semibold text-slate-600 px-3 py-2 border-r border-slate-200" style={{ minWidth: "60px" }}>Qty</th>
+                      <th className="text-left font-semibold text-slate-600 px-3 py-2 border-r border-slate-200" style={{ minWidth: "90px" }}>Status</th>
+                      <th className="text-left font-semibold text-slate-600 px-3 py-2 border-r border-slate-200" style={{ minWidth: "140px" }}>Service Order</th>
+                      <th className="text-left font-semibold text-slate-600 px-3 py-2" style={{ minWidth: "150px" }}>Comments</th>
+                      {canEdit && <th className="w-10 px-1 py-2"></th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((item, i) => (
+                      <tr
+                        key={i}
+                        data-testid={`row-item-${i}`}
+                        className={`border-b border-slate-100 hover:bg-blue-50/30 ${i % 2 === 0 ? "bg-white" : "bg-slate-50/50"}`}
+                      >
+                        <td className="px-3 py-1.5 border-r border-slate-200 text-center text-slate-400 text-xs tabular-nums">{i + 1}</td>
+                        <td className="border-r border-slate-200 p-0">
+                          <input
+                            value={item.itemCode}
+                            onChange={e => updateItem(i, "itemCode", e.target.value)}
+                            disabled={!canEdit}
+                            className="w-full px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 font-mono text-xs disabled:text-slate-700"
+                            data-testid={`input-item-code-${i}`}
+                          />
+                        </td>
+                        <td className="border-r border-slate-200 p-0">
+                          <input
+                            value={item.description}
+                            onChange={e => updateItem(i, "description", e.target.value)}
+                            disabled={!canEdit}
+                            className="w-full px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 disabled:text-slate-700"
+                          />
+                        </td>
+                        <td className="border-r border-slate-200 p-0">
+                          <input
+                            value={item.uom}
+                            onChange={e => updateItem(i, "uom", e.target.value)}
+                            disabled={!canEdit}
+                            className="w-full px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 disabled:text-slate-700"
+                          />
+                        </td>
+                        <td className="border-r border-slate-200 p-0">
+                          <input
+                            value={item.quantity}
+                            type="number"
+                            onChange={e => updateItem(i, "quantity", e.target.value)}
+                            disabled={!canEdit}
+                            className="w-full px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 text-right tabular-nums disabled:text-slate-700"
+                          />
+                        </td>
+                        <td className="border-r border-slate-200 p-0">
+                          <input
+                            value={item.status}
+                            onChange={e => updateItem(i, "status", e.target.value)}
+                            disabled={!canEdit}
+                            className="w-full px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 disabled:text-slate-700"
+                          />
+                        </td>
+                        <td className="border-r border-slate-200 p-0">
+                          <input
+                            value={item.serviceOrder}
+                            onChange={e => updateItem(i, "serviceOrder", e.target.value)}
+                            disabled={!canEdit}
+                            className="w-full px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 font-mono text-xs disabled:text-slate-700"
+                            data-testid={`input-item-service-order-${i}`}
+                          />
+                        </td>
+                        <td className="p-0">
+                          <input
+                            value={item.comments}
+                            onChange={e => updateItem(i, "comments", e.target.value)}
+                            disabled={!canEdit}
+                            className="w-full px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 disabled:text-slate-700"
+                            data-testid={`input-item-comments-${i}`}
+                          />
+                        </td>
+                        {canEdit && (
+                          <td className="px-1 py-1.5 text-center">
+                            <button onClick={() => removeItem(i)} className="text-slate-300 hover:text-red-500 transition-colors" data-testid={`button-remove-item-${i}`}>
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
