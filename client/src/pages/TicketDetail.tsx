@@ -82,6 +82,7 @@ export default function TicketDetail() {
   const [form, setForm] = useState<any>({ ...emptyForm });
   const [items, setItems] = useState<TicketItemRow[]>([]);
   const [itemsExpanded, setItemsExpanded] = useState(false);
+  const [chatExpanded, setChatExpanded] = useState(false);
   const [colWidths, setColWidths] = useState<Record<string, number>>({
     "#": 40, "Item Code": 130, "Description": 280, "UOM": 65, "Qty": 65,
     "Status": 100, "Service Order": 160, "Comments": 250,
@@ -407,6 +408,91 @@ export default function TicketDetail() {
     );
   };
 
+  const renderChatMessages = () => (
+    <>
+      {isNew ? (
+        <p className="text-sm text-slate-400 text-center py-4">Save the ticket first to start chatting.</p>
+      ) : messages.length === 0 ? (
+        <p className="text-sm text-slate-400 text-center py-4">No messages yet.</p>
+      ) : (
+        messages.map((msg: any) => {
+          const isLegacy = msg.messageText?.startsWith("[Legacy] ");
+          const displayText = isLegacy ? msg.messageText.substring(9) : msg.messageText;
+          return (
+            <div key={msg.id} className={`rounded-lg p-3 border ${isLegacy ? "bg-amber-50/50 border-amber-100" : "bg-slate-50 border-slate-100"}`} data-testid={`message-${msg.id}`}>
+              <div className="flex justify-between items-baseline mb-1">
+                <span className="font-semibold text-sm text-slate-900">
+                  {msg.senderFirstName} {msg.senderLastName}
+                  {isLegacy && <span className="ml-2 text-xs font-normal text-amber-600">imported</span>}
+                </span>
+                <span className="text-xs text-slate-400">
+                  {new Date(msg.createdAt).toLocaleDateString()} {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                </span>
+              </div>
+              <p className="text-sm text-slate-700 whitespace-pre-wrap">{displayText}</p>
+            </div>
+          );
+        })
+      )}
+    </>
+  );
+
+  const renderChatInput = () => (
+    !isNew && !isReadOnly ? (
+      <div className="flex gap-2 shrink-0">
+        <Input
+          placeholder="Type a message..."
+          value={messageText}
+          onChange={e => setMessageText(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && handleSendMessage()}
+          className="flex-1"
+          data-testid="input-message"
+        />
+        <Button size="icon" onClick={handleSendMessage} data-testid="button-send-message">
+          <Send className="w-4 h-4" />
+        </Button>
+      </div>
+    ) : null
+  );
+
+  const renderChatSection = (expanded: boolean) => {
+    if (expanded) {
+      return (
+        <div className="flex flex-col h-full">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
+            <h2 className="text-lg font-semibold text-slate-900">Chat / Activity ({messages.length})</h2>
+            <Button size="sm" variant="ghost" onClick={() => setChatExpanded(false)} data-testid="button-collapse-chat">
+              <Minimize2 className="w-4 h-4" />
+            </Button>
+          </div>
+          <div className="flex-1 overflow-y-auto space-y-3 p-6">
+            {renderChatMessages()}
+          </div>
+          <div className="px-6 pb-4">
+            {renderChatInput()}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <Card className="shadow-sm flex flex-col" style={{ maxHeight: "500px" }}>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle>Chat / Activity ({messages.length})</CardTitle>
+          <Button size="sm" variant="ghost" onClick={() => setChatExpanded(true)} data-testid="button-expand-chat" title="Expand to full screen">
+            <Maximize2 className="w-4 h-4" />
+          </Button>
+        </CardHeader>
+        <CardContent className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="flex-1 overflow-y-auto space-y-3 mb-4 pr-1">
+            {renderChatMessages()}
+          </div>
+          {renderChatInput()}
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
     <div className="p-8 max-w-7xl mx-auto">
       <AlertDialog open={showDiscardDialog} onOpenChange={setShowDiscardDialog}>
@@ -606,54 +692,7 @@ export default function TicketDetail() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-sm flex flex-col" style={{ minHeight: "460px" }}>
-            <CardHeader>
-              <CardTitle>Chat / Activity</CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 flex flex-col min-h-0 overflow-hidden">
-              <div className="flex-1 overflow-y-auto space-y-3 mb-4 pr-1">
-                {isNew ? (
-                  <p className="text-sm text-slate-400 text-center py-4">Save the ticket first to start chatting.</p>
-                ) : messages.length === 0 ? (
-                  <p className="text-sm text-slate-400 text-center py-4">No messages yet.</p>
-                ) : (
-                  messages.map((msg: any) => {
-                    const isLegacy = msg.messageText?.startsWith("[Legacy] ");
-                    const displayText = isLegacy ? msg.messageText.substring(9) : msg.messageText;
-                    return (
-                      <div key={msg.id} className={`rounded-lg p-3 border ${isLegacy ? "bg-amber-50/50 border-amber-100" : "bg-slate-50 border-slate-100"}`} data-testid={`message-${msg.id}`}>
-                        <div className="flex justify-between items-baseline mb-1">
-                          <span className="font-semibold text-sm text-slate-900">
-                            {msg.senderFirstName} {msg.senderLastName}
-                            {isLegacy && <span className="ml-2 text-xs font-normal text-amber-600">imported</span>}
-                          </span>
-                          <span className="text-xs text-slate-400">
-                            {new Date(msg.createdAt).toLocaleDateString()} {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                          </span>
-                        </div>
-                        <p className="text-sm text-slate-700 whitespace-pre-wrap">{displayText}</p>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-              {!isNew && !isReadOnly && (
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Type a message..."
-                    value={messageText}
-                    onChange={e => setMessageText(e.target.value)}
-                    onKeyDown={e => e.key === "Enter" && handleSendMessage()}
-                    className="flex-1"
-                    data-testid="input-message"
-                  />
-                  <Button size="icon" onClick={handleSendMessage} data-testid="button-send-message">
-                    <Send className="w-4 h-4" />
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {renderChatSection(false)}
         </div>
       </div>
 
@@ -663,6 +702,14 @@ export default function TicketDetail() {
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center" onClick={() => setItemsExpanded(false)}>
           <div className="bg-white rounded-lg shadow-2xl flex flex-col" style={{ width: "95vw", height: "90vh" }} onClick={e => e.stopPropagation()}>
             {renderLineItemsSection(true)}
+          </div>
+        </div>
+      )}
+
+      {chatExpanded && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center" onClick={() => setChatExpanded(false)}>
+          <div className="bg-white rounded-lg shadow-2xl flex flex-col" style={{ width: "60vw", height: "85vh" }} onClick={e => e.stopPropagation()}>
+            {renderChatSection(true)}
           </div>
         </div>
       )}
