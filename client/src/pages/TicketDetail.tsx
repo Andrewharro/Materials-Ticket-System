@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useLocation, useSearch } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -82,6 +82,15 @@ export default function TicketDetail() {
   const [form, setForm] = useState<any>({ ...emptyForm });
   const [items, setItems] = useState<TicketItemRow[]>([]);
   const [itemsExpanded, setItemsExpanded] = useState(false);
+  const [colWidths, setColWidths] = useState<Record<string, number>>({
+    "#": 40, "Item Code": 130, "Description": 280, "UOM": 65, "Qty": 65,
+    "Status": 100, "Service Order": 160, "Comments": 250,
+  });
+  const [expandedWidths, setExpandedWidths] = useState<Record<string, number>>({
+    "#": 45, "Item Code": 140, "Description": 380, "UOM": 70, "Qty": 70,
+    "Status": 110, "Service Order": 180, "Comments": 350,
+  });
+  const resizingRef = useRef<{ col: string; startX: number; startW: number; expanded: boolean } | null>(null);
   const [messageText, setMessageText] = useState("");
   const [saving, setSaving] = useState(false);
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
@@ -136,6 +145,23 @@ export default function TicketDetail() {
       );
     }
   }, [ticket]);
+
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      if (!resizingRef.current) return;
+      const delta = e.clientX - resizingRef.current.startX;
+      const newW = Math.max(40, resizingRef.current.startW + delta);
+      if (resizingRef.current.expanded) {
+        setExpandedWidths(prev => ({ ...prev, [resizingRef.current!.col]: newW }));
+      } else {
+        setColWidths(prev => ({ ...prev, [resizingRef.current!.col]: newW }));
+      }
+    };
+    const onMouseUp = () => { resizingRef.current = null; document.body.style.cursor = ""; document.body.style.userSelect = ""; };
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    return () => { window.removeEventListener("mousemove", onMouseMove); window.removeEventListener("mouseup", onMouseUp); };
+  }, []);
 
   const ticketDirection = isNew ? directionParam : ticket?.direction;
   const backPath = ticketDirection === "OUTBOUND" ? "/outbound" : "/inbound";
@@ -233,23 +259,49 @@ export default function TicketDetail() {
 
   const messages = isNew ? [] : (ticket?.messages || []);
 
-  const renderLineItemsSection = (expanded: boolean) => {
-    const itemsTable = items.length === 0 ? (
-      <p className="text-center py-8 text-slate-500 px-6">No line items were imported for this ticket from the SharePoint data source. Click "Add Item" to add items manually.</p>
-    ) : (
+  const startResize = (col: string, e: React.MouseEvent, expanded: boolean) => {
+    e.preventDefault();
+    const w = expanded ? expandedWidths[col] : colWidths[col];
+    resizingRef.current = { col, startX: e.clientX, startW: w, expanded };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  };
+
+  const columns = [
+    { key: "#", align: "center" as const },
+    { key: "Item Code", align: "left" as const },
+    { key: "Description", align: "left" as const },
+    { key: "UOM", align: "left" as const },
+    { key: "Qty", align: "right" as const },
+    { key: "Status", align: "left" as const },
+    { key: "Service Order", align: "left" as const },
+    { key: "Comments", align: "left" as const },
+  ];
+
+  const renderItemsTable = (expanded: boolean) => {
+    const widths = expanded ? expandedWidths : colWidths;
+    return (
       <div className={`overflow-auto border-t border-slate-200 ${expanded ? "flex-1" : ""}`}>
-        <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
+        <table className="text-sm border-collapse" style={{ tableLayout: "fixed", width: columns.reduce((s, c) => s + widths[c.key], 0) + (canEdit ? 36 : 0) }}>
+          <colgroup>
+            {columns.map(c => <col key={c.key} style={{ width: widths[c.key] }} />)}
+            {canEdit && <col style={{ width: 36 }} />}
+          </colgroup>
           <thead className="sticky top-0 z-10">
             <tr className="bg-slate-50 border-b border-slate-200">
-              <th className="text-left font-semibold text-slate-600 px-3 py-2 border-r border-slate-200 w-8 text-center">#</th>
-              <th className="text-left font-semibold text-slate-600 px-3 py-2 border-r border-slate-200" style={{ minWidth: "120px" }}>Item Code</th>
-              <th className="text-left font-semibold text-slate-600 px-3 py-2 border-r border-slate-200" style={{ minWidth: "200px" }}>Description</th>
-              <th className="text-left font-semibold text-slate-600 px-3 py-2 border-r border-slate-200" style={{ minWidth: "60px" }}>UOM</th>
-              <th className="text-right font-semibold text-slate-600 px-3 py-2 border-r border-slate-200" style={{ minWidth: "60px" }}>Qty</th>
-              <th className="text-left font-semibold text-slate-600 px-3 py-2 border-r border-slate-200" style={{ minWidth: "90px" }}>Status</th>
-              <th className="text-left font-semibold text-slate-600 px-3 py-2 border-r border-slate-200" style={{ minWidth: "140px" }}>Service Order</th>
-              <th className="text-left font-semibold text-slate-600 px-3 py-2" style={{ minWidth: "150px" }}>Comments</th>
-              {canEdit && <th className="w-10 px-1 py-2"></th>}
+              {columns.map(c => (
+                <th key={c.key} className="font-semibold text-slate-600 px-3 py-2 border-r border-slate-200 relative select-none" style={{ textAlign: c.align }}>
+                  {c.key}
+                  {c.key !== "#" && (
+                    <span
+                      onMouseDown={e => startResize(c.key, e, expanded)}
+                      className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-blue-400/40"
+                      style={{ zIndex: 20 }}
+                    />
+                  )}
+                </th>
+              ))}
+              {canEdit && <th className="px-1 py-2 border-slate-200"></th>}
             </tr>
           </thead>
           <tbody>
@@ -260,65 +312,33 @@ export default function TicketDetail() {
                 className={`border-b border-slate-100 hover:bg-blue-50/30 ${i % 2 === 0 ? "bg-white" : "bg-slate-50/50"}`}
               >
                 <td className="px-3 py-1.5 border-r border-slate-200 text-center text-slate-400 text-xs tabular-nums">{i + 1}</td>
-                <td className="border-r border-slate-200 p-0">
-                  <input
-                    value={item.itemCode}
-                    onChange={e => updateItem(i, "itemCode", e.target.value)}
-                    disabled={!canEdit}
-                    className="w-full px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 font-mono text-xs disabled:text-slate-700"
-                    data-testid={`input-item-code-${i}`}
-                  />
+                <td className="border-r border-slate-200 p-0 overflow-hidden">
+                  <input value={item.itemCode} onChange={e => updateItem(i, "itemCode", e.target.value)} disabled={!canEdit}
+                    className="w-full px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 font-mono text-xs disabled:text-slate-700" data-testid={`input-item-code-${i}`} />
                 </td>
-                <td className="border-r border-slate-200 p-0">
-                  <input
-                    value={item.description}
-                    onChange={e => updateItem(i, "description", e.target.value)}
-                    disabled={!canEdit}
-                    className="w-full px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 disabled:text-slate-700"
-                  />
+                <td className="border-r border-slate-200 p-0 overflow-hidden">
+                  <input value={item.description} onChange={e => updateItem(i, "description", e.target.value)} disabled={!canEdit}
+                    className="w-full px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 disabled:text-slate-700" />
                 </td>
-                <td className="border-r border-slate-200 p-0">
-                  <input
-                    value={item.uom}
-                    onChange={e => updateItem(i, "uom", e.target.value)}
-                    disabled={!canEdit}
-                    className="w-full px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 disabled:text-slate-700"
-                  />
+                <td className="border-r border-slate-200 p-0 overflow-hidden">
+                  <input value={item.uom} onChange={e => updateItem(i, "uom", e.target.value)} disabled={!canEdit}
+                    className="w-full px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 disabled:text-slate-700" />
                 </td>
-                <td className="border-r border-slate-200 p-0">
-                  <input
-                    value={item.quantity}
-                    type="number"
-                    onChange={e => updateItem(i, "quantity", e.target.value)}
-                    disabled={!canEdit}
-                    className="w-full px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 text-right tabular-nums disabled:text-slate-700"
-                  />
+                <td className="border-r border-slate-200 p-0 overflow-hidden">
+                  <input value={item.quantity} type="number" onChange={e => updateItem(i, "quantity", e.target.value)} disabled={!canEdit}
+                    className="w-full px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 text-right tabular-nums disabled:text-slate-700" />
                 </td>
-                <td className="border-r border-slate-200 p-0">
-                  <input
-                    value={item.status}
-                    onChange={e => updateItem(i, "status", e.target.value)}
-                    disabled={!canEdit}
-                    className="w-full px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 disabled:text-slate-700"
-                  />
+                <td className="border-r border-slate-200 p-0 overflow-hidden">
+                  <input value={item.status} onChange={e => updateItem(i, "status", e.target.value)} disabled={!canEdit}
+                    className="w-full px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 disabled:text-slate-700" />
                 </td>
-                <td className="border-r border-slate-200 p-0">
-                  <input
-                    value={item.serviceOrder}
-                    onChange={e => updateItem(i, "serviceOrder", e.target.value)}
-                    disabled={!canEdit}
-                    className="w-full px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 font-mono text-xs disabled:text-slate-700"
-                    data-testid={`input-item-service-order-${i}`}
-                  />
+                <td className="border-r border-slate-200 p-0 overflow-hidden">
+                  <input value={item.serviceOrder} onChange={e => updateItem(i, "serviceOrder", e.target.value)} disabled={!canEdit}
+                    className="w-full px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 font-mono text-xs disabled:text-slate-700" data-testid={`input-item-service-order-${i}`} />
                 </td>
-                <td className="p-0">
-                  <input
-                    value={item.comments}
-                    onChange={e => updateItem(i, "comments", e.target.value)}
-                    disabled={!canEdit}
-                    className="w-full px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 disabled:text-slate-700"
-                    data-testid={`input-item-comments-${i}`}
-                  />
+                <td className="p-0 overflow-hidden">
+                  <input value={item.comments} onChange={e => updateItem(i, "comments", e.target.value)} disabled={!canEdit}
+                    className="w-full px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 disabled:text-slate-700" data-testid={`input-item-comments-${i}`} />
                 </td>
                 {canEdit && (
                   <td className="px-1 py-1.5 text-center">
@@ -333,6 +353,12 @@ export default function TicketDetail() {
         </table>
       </div>
     );
+  };
+
+  const renderLineItemsSection = (expanded: boolean) => {
+    const itemsTable = items.length === 0 ? (
+      <p className="text-center py-8 text-slate-500 px-6">No line items were imported for this ticket from the SharePoint data source. Click "Add Item" to add items manually.</p>
+    ) : renderItemsTable(expanded);
 
     if (expanded) {
       return (
