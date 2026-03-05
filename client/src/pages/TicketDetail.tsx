@@ -532,9 +532,9 @@ export default function TicketDetail() {
 
       <div className="flex justify-between items-center mb-8">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={handleBack} data-testid="button-back" className="h-12 w-12 p-0">
-            <ArrowLeft className="w-9 h-9" />
-          </Button>
+          <button onClick={handleBack} data-testid="button-back" className="text-slate-500 hover:text-slate-900 transition-colors">
+            <ArrowLeft style={{ width: 36, height: 36 }} />
+          </button>
           <div>
             <h1 className="text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-3" data-testid="text-ticket-title">
               {isNew ? "New Ticket" : `Ticket #${ticket.legacyId || ticket.id}`}
