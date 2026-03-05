@@ -860,7 +860,7 @@ export default function TicketTable({ direction }: { direction: "INBOUND" | "OUT
           <TableHeader className="bg-slate-50">
             <TableRow>
               {visibleColumns.map(key => {
-                const widths: Record<string, string> = { id: "90px", itemCount: "70px", status: "90px", priority: "80px", state: "60px" };
+                const widths: Record<string, string> = { id: "70px", itemCount: "70px", status: "90px", priority: "80px", state: "60px", projectName: "110px", requestedDeliveryDate: "110px" };
                 return (
                 <TableHead key={key} className="whitespace-nowrap p-0" style={{ width: widths[key] || "150px" }}>
                   <ColumnHeaderDropdown
