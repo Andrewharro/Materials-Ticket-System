@@ -844,7 +844,7 @@ export default function TicketTable({ direction }: { direction: "INBOUND" | "OUT
         </div>
       </div>
 
-      <div className="bg-white rounded-md border border-slate-200 overflow-hidden shadow-sm overflow-x-auto">
+      <div className="bg-white rounded-md border border-slate-200 shadow-sm overflow-x-auto">
         <Table className="table-fixed w-full">
           <TableHeader className="bg-slate-50">
             <TableRow>

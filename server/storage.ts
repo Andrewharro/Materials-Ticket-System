@@ -514,6 +514,9 @@ export class DatabaseStorage implements IStorage {
       updatedAt: tickets.updatedAt,
       closedAt: tickets.closedAt,
     };
+    if (column === "itemServiceOrders" || column === "itemCount") {
+      return [];
+    }
     if (column === "id") {
       const conditions: any[] = [eq(tickets.direction, direction as any)];
       if (subcontractorId) conditions.push(eq(tickets.subcontractorId, subcontractorId));
