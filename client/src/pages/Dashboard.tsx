@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Inbox, Send, Clock, CheckCircle, X, Package, FileText, UserCheck } from "lucide-react";
+import { Inbox, Send, Clock, CheckCircle, X, Package, FileText, UserCheck, TrendingUp, Layers } from "lucide-react";
 import { apiGet } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import {
@@ -27,6 +27,7 @@ function getInitials(name: string): string {
 export default function Dashboard() {
   const [directionFilter, setDirectionFilter] = useState<DirectionFilter>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(null);
+  const [projectFilter, setProjectFilter] = useState<string | null>(null);
 
   const { data: inboundData } = useQuery({
     queryKey: ["tickets-inbound-stats"],
@@ -65,9 +66,10 @@ export default function Dashboard() {
   if (statusFilter === "open") chartParams.set("status", "Open");
   if (statusFilter === "onhold") chartParams.set("status", "On Hold");
   if (statusFilter === "closed") chartParams.set("status", "Closed");
+  if (projectFilter) chartParams.set("projectName", projectFilter);
 
   const { data: chartData } = useQuery({
-    queryKey: ["dashboard-charts", directionFilter, statusFilter],
+    queryKey: ["dashboard-charts", directionFilter, statusFilter, projectFilter],
     queryFn: () => apiGet<{
       byProject: { name: string; count: number; items: number }[];
       byAssignee: { name: string; count: number; items: number }[];
@@ -102,6 +104,10 @@ export default function Dashboard() {
     setStatusFilter(prev => prev === key ? null : key);
   };
 
+  const toggleProject = (name: string) => {
+    setProjectFilter(prev => prev === name ? null : name);
+  };
+
   const projectData = chartData?.byProject ?? [];
   const assigneeData = chartData?.byAssignee ?? [];
   const monthData = (chartData?.byMonth ?? []).map(m => ({
@@ -109,13 +115,19 @@ export default function Dashboard() {
     label: formatMonth(m.month),
   }));
 
-  const hasFilter = directionFilter || statusFilter;
+  const hasFilter = directionFilter || statusFilter || projectFilter;
   const filterLabels: string[] = [];
   if (directionFilter) filterLabels.push(directionStats.find(s => s.key === directionFilter)!.label);
   if (statusFilter) filterLabels.push(statusStats.find(s => s.key === statusFilter)!.label);
+  if (projectFilter) filterLabels.push(projectFilter);
 
   const maxProjectTickets = projectData.length > 0 ? projectData[0].count : 1;
   const maxAssigneeTickets = assigneeData.length > 0 ? assigneeData[0].count : 1;
+
+  const totalTickets = monthData.reduce((sum, m) => sum + m.count, 0);
+  const totalItems = monthData.reduce((sum, m) => sum + m.items, 0);
+  const avgTicketsPerMonth = monthData.length > 0 ? Math.round(totalTickets / monthData.length) : 0;
+  const avgItemsPerTicket = totalTickets > 0 ? (totalItems / totalTickets).toFixed(1) : "0";
 
   return (
     <div className="p-8">
@@ -174,7 +186,7 @@ export default function Dashboard() {
             Filtered by: <span className="font-semibold">{filterLabels.join(" + ")}</span>
           </span>
           <button
-            onClick={() => { setDirectionFilter(null); setStatusFilter(null); }}
+            onClick={() => { setDirectionFilter(null); setStatusFilter(null); setProjectFilter(null); }}
             className="text-sm text-slate-500 hover:text-slate-800 flex items-center gap-1 transition-colors"
             data-testid="button-clear-filter"
           >
@@ -190,6 +202,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-6 text-xs text-slate-400 pt-1">
               <span className="flex items-center gap-1"><FileText className="w-3.5 h-3.5" /> Tickets</span>
               <span className="flex items-center gap-1"><Package className="w-3.5 h-3.5" /> Items</span>
+              <span className="ml-auto text-[10px] text-slate-400 italic">Click a project to filter</span>
             </div>
           </CardHeader>
           <CardContent className="pt-0">
@@ -199,21 +212,25 @@ export default function Dashboard() {
               <div className="space-y-1">
                 {projectData.map((project, idx) => {
                   const barWidth = Math.max(4, (project.count / maxProjectTickets) * 100);
+                  const isSelected = projectFilter === project.name;
                   return (
                     <div
                       key={project.name}
+                      onClick={() => toggleProject(project.name)}
                       className={cn(
-                        "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors",
-                        idx % 2 === 0 ? "bg-slate-50" : "bg-white"
+                        "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all cursor-pointer",
+                        isSelected
+                          ? "bg-blue-50 ring-2 ring-blue-300 shadow-sm"
+                          : idx % 2 === 0 ? "bg-slate-50 hover:bg-slate-100" : "bg-white hover:bg-slate-50"
                       )}
                       data-testid={`row-project-${idx}`}
                     >
                       <span className="text-xs font-medium text-slate-400 w-5 text-right shrink-0">{idx + 1}</span>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-slate-800 truncate">{project.name}</p>
+                        <p className={cn("text-sm font-medium truncate", isSelected ? "text-blue-800" : "text-slate-800")}>{project.name}</p>
                         <div className="mt-1.5 h-1.5 rounded-full bg-slate-200 overflow-hidden">
                           <div
-                            className="h-full rounded-full bg-blue-500 transition-all duration-500"
+                            className={cn("h-full rounded-full transition-all duration-500", isSelected ? "bg-blue-600" : "bg-blue-500")}
                             style={{ width: `${barWidth}%` }}
                           />
                         </div>
@@ -296,29 +313,55 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <Card className="shadow-sm border-slate-200 mb-6">
-        <CardHeader>
-          <CardTitle className="text-lg">Tickets & Items per Month</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {monthData.length === 0 ? (
-            <p className="text-slate-400 text-center py-12">No data</p>
-          ) : (
-            <ResponsiveContainer width="100%" height={400}>
-              <ComposedChart data={monthData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="label" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={60} />
-                <YAxis yAxisId="left" allowDecimals={false} tick={{ fontSize: 12 }} label={{ value: "Tickets", angle: -90, position: "insideLeft", style: { fontSize: 12, fill: "#3b82f6" } }} />
-                <YAxis yAxisId="right" orientation="right" allowDecimals={false} tick={{ fontSize: 12 }} label={{ value: "Items", angle: 90, position: "insideRight", style: { fontSize: 12, fill: "#f59e0b" } }} />
-                <Tooltip />
-                <Legend />
-                <Bar yAxisId="left" dataKey="count" name="Tickets" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                <Line yAxisId="right" type="monotone" dataKey="items" name="Items" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
-              </ComposedChart>
-            </ResponsiveContainer>
-          )}
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 mb-6">
+        <Card className="shadow-sm border-slate-200 xl:col-span-3">
+          <CardHeader>
+            <CardTitle className="text-lg">Tickets & Items per Month</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {monthData.length === 0 ? (
+              <p className="text-slate-400 text-center py-12">No data</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={400}>
+                <ComposedChart data={monthData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="label" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={60} />
+                  <YAxis yAxisId="left" allowDecimals={false} tick={{ fontSize: 12 }} label={{ value: "Tickets", angle: -90, position: "insideLeft", style: { fontSize: 12, fill: "#3b82f6" } }} />
+                  <YAxis yAxisId="right" orientation="right" allowDecimals={false} tick={{ fontSize: 12 }} label={{ value: "Items", angle: 90, position: "insideRight", style: { fontSize: 12, fill: "#f59e0b" } }} />
+                  <Tooltip />
+                  <Legend />
+                  <Bar yAxisId="left" dataKey="count" name="Tickets" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                  <Line yAxisId="right" type="monotone" dataKey="items" name="Items" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        <div className="flex flex-col gap-6">
+          <Card className="shadow-sm border-slate-200 bg-gradient-to-br from-emerald-50/50 to-teal-50/30 flex-1">
+            <CardContent className="p-6 flex flex-col items-center justify-center h-full text-center">
+              <div className="p-3 rounded-full bg-emerald-100 mb-4">
+                <TrendingUp className="w-6 h-6 text-emerald-600" />
+              </div>
+              <p className="text-xs font-medium text-emerald-600 uppercase tracking-wider mb-2">Avg Tickets / Month</p>
+              <h3 className="text-4xl font-bold text-emerald-700" data-testid="text-avg-tickets-month">{avgTicketsPerMonth.toLocaleString()}</h3>
+              <p className="text-xs text-slate-400 mt-2">across {monthData.length} month{monthData.length !== 1 ? "s" : ""}</p>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-sm border-slate-200 bg-gradient-to-br from-cyan-50/50 to-sky-50/30 flex-1">
+            <CardContent className="p-6 flex flex-col items-center justify-center h-full text-center">
+              <div className="p-3 rounded-full bg-cyan-100 mb-4">
+                <Layers className="w-6 h-6 text-cyan-600" />
+              </div>
+              <p className="text-xs font-medium text-cyan-600 uppercase tracking-wider mb-2">Avg Items / Ticket</p>
+              <h3 className="text-4xl font-bold text-cyan-700" data-testid="text-avg-items-ticket">{avgItemsPerTicket}</h3>
+              <p className="text-xs text-slate-400 mt-2">{totalItems.toLocaleString()} items total</p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }

@@ -63,7 +63,8 @@ export async function registerRoutes(
     try {
       const direction = (req.query.direction as string) || undefined;
       const status = (req.query.status as string) || undefined;
-      const chartData = await storage.getDashboardStats(direction, status);
+      const projectName = (req.query.projectName as string) || undefined;
+      const chartData = await storage.getDashboardStats(direction, status, projectName);
       res.json(chartData);
     } catch (err: any) {
       res.status(500).json({ message: err.message });

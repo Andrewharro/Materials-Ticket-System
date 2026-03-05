@@ -86,7 +86,7 @@ export interface IStorage {
   deleteAppRole(id: number): Promise<void>;
 
   saveTicketWithItems(ticketData: Partial<InsertTicket> & { id?: number }, itemsData: (InsertTicketItem & { id?: number })[]): Promise<{ ticket: Ticket; items: TicketItem[] }>;
-  getDashboardStats(direction?: string, status?: string): Promise<{ byProject: { name: string; count: number; items: number }[]; byAssignee: { name: string; count: number; items: number }[]; byMonth: { month: string; count: number; items: number }[] }>;
+  getDashboardStats(direction?: string, status?: string, projectName?: string): Promise<{ byProject: { name: string; count: number; items: number }[]; byAssignee: { name: string; count: number; items: number }[]; byMonth: { month: string; count: number; items: number }[] }>;
   getDistinctColumnValues(direction: string, column: string, search?: string, subcontractorId?: number): Promise<string[]>;
 }
 
@@ -492,10 +492,11 @@ export class DatabaseStorage implements IStorage {
       return { ticket, items: savedItems };
     });
   }
-  async getDashboardStats(direction?: string, status?: string): Promise<{ byProject: { name: string; count: number; items: number }[]; byAssignee: { name: string; count: number; items: number }[]; byMonth: { month: string; count: number; items: number }[] }> {
+  async getDashboardStats(direction?: string, status?: string, projectName?: string): Promise<{ byProject: { name: string; count: number; items: number }[]; byAssignee: { name: string; count: number; items: number }[]; byMonth: { month: string; count: number; items: number }[] }> {
     const conditions: any[] = [];
     if (direction) conditions.push(eq(tickets.direction, direction as any));
     if (status) conditions.push(eq(tickets.status, status));
+    if (projectName) conditions.push(eq(tickets.projectName, projectName));
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
     const projectRows = await db
