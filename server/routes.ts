@@ -59,6 +59,17 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/dashboard/stats", requireAuth, async (req, res) => {
+    try {
+      const direction = (req.query.direction as string) || undefined;
+      const status = (req.query.status as string) || undefined;
+      const chartData = await storage.getDashboardStats(direction, status);
+      res.json(chartData);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   app.get("/api/tickets/distinct-values", requireAuth, async (req, res) => {
     try {
       const direction = req.query.direction as string;

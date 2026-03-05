@@ -86,6 +86,7 @@ export interface IStorage {
   deleteAppRole(id: number): Promise<void>;
 
   saveTicketWithItems(ticketData: Partial<InsertTicket> & { id?: number }, itemsData: (InsertTicketItem & { id?: number })[]): Promise<{ ticket: Ticket; items: TicketItem[] }>;
+  getDashboardStats(direction?: string, status?: string): Promise<{ byProject: { name: string; count: number }[]; byMonth: { month: string; count: number }[] }>;
   getDistinctColumnValues(direction: string, column: string, search?: string, subcontractorId?: number): Promise<string[]>;
 }
 
@@ -491,6 +492,35 @@ export class DatabaseStorage implements IStorage {
       return { ticket, items: savedItems };
     });
   }
+  async getDashboardStats(direction?: string, status?: string): Promise<{ byProject: { name: string; count: number }[]; byMonth: { month: string; count: number }[] }> {
+    const conditions: any[] = [];
+    if (direction) conditions.push(eq(tickets.direction, direction as any));
+    if (status) conditions.push(eq(tickets.status, status));
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const projectRows = await db
+      .select({ name: tickets.projectName, count: count() })
+      .from(tickets)
+      .where(whereClause)
+      .groupBy(tickets.projectName)
+      .orderBy(desc(count()));
+
+    const monthRows = await db
+      .select({
+        month: sql<string>`TO_CHAR(${tickets.createdAt}, 'YYYY-MM')`,
+        count: count(),
+      })
+      .from(tickets)
+      .where(whereClause)
+      .groupBy(sql`TO_CHAR(${tickets.createdAt}, 'YYYY-MM')`)
+      .orderBy(asc(sql`TO_CHAR(${tickets.createdAt}, 'YYYY-MM')`));
+
+    return {
+      byProject: projectRows.map(r => ({ name: r.name || "Unknown", count: Number(r.count) })),
+      byMonth: monthRows.map(r => ({ month: r.month, count: Number(r.count) })),
+    };
+  }
+
   async getDistinctColumnValues(direction: string, column: string, search?: string, subcontractorId?: number): Promise<string[]> {
     const colMap: Record<string, any> = {
       status: tickets.status, serviceOrder: tickets.serviceOrder,

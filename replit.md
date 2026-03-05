@@ -27,7 +27,7 @@ Full-stack materials ticketing system replacing a Power Apps + SharePoint soluti
 - `client/src/pages/` — Dashboard, InboundTickets, OutboundTickets, TicketDetail, SettingsUsers, SettingsReferenceData, Login
 
 ## Data Model
-Tables: users, tickets, ticket_items, ticket_messages, subcontractors, departments, department_techs, ticket_statuses, app_settings, email_logs
+Tables: users, tickets, ticket_items, ticket_messages, subcontractors, departments, department_techs, ticket_statuses, app_settings, email_logs, warehouses
 Enums: user_role (USER/COORDINATOR/ADMIN), ticket_direction (INBOUND/OUTBOUND), ticket_status_key
 
 ## Imported Data (from SharePoint XLSX)
