@@ -8,6 +8,7 @@ interface AuthUser {
   role: string;
   isActive: boolean;
   subcontractorId?: number | null;
+  subcontractorName?: string | null;
 }
 
 interface AuthState {

@@ -33,7 +33,11 @@ export async function registerRoutes(
       }
 
       const token = signToken({ userId: user.id, email: user.email, role: user.role, subcontractorId: user.subcontractorId });
-      const { passwordHash: _, ...safeUser } = user;
+      const { passwordHash: _, ...safeUser } = user as any;
+      if (user.role === "SUBCONTRACTOR" && user.subcontractorId) {
+        const sc = await storage.getSubcontractor(user.subcontractorId);
+        safeUser.subcontractorName = sc?.name || null;
+      }
       res.json({ token, user: safeUser });
     } catch (err: any) {
       res.status(500).json({ message: err.message });

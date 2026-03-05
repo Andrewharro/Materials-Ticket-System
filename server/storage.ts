@@ -51,6 +51,7 @@ export interface IStorage {
   getTicketMessages(ticketId: number): Promise<any[]>;
 
   listSubcontractors(): Promise<Subcontractor[]>;
+  getSubcontractor(id: number): Promise<Subcontractor | undefined>;
   createSubcontractor(s: InsertSubcontractor): Promise<Subcontractor>;
   updateSubcontractor(id: number, data: Partial<InsertSubcontractor>): Promise<Subcontractor | undefined>;
   deleteSubcontractor(id: number): Promise<void>;
@@ -229,6 +230,11 @@ export class DatabaseStorage implements IStorage {
 
   async listSubcontractors(): Promise<Subcontractor[]> {
     return db.select().from(subcontractors).orderBy(asc(subcontractors.name));
+  }
+
+  async getSubcontractor(id: number): Promise<Subcontractor | undefined> {
+    const [sc] = await db.select().from(subcontractors).where(eq(subcontractors.id, id));
+    return sc;
   }
 
   async createSubcontractor(s: InsertSubcontractor): Promise<Subcontractor> {
