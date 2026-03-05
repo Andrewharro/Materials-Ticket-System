@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Inbox, Send, Clock, CheckCircle, X, Package, FileText } from "lucide-react";
+import { Inbox, Send, Clock, CheckCircle, X, Package, FileText, UserCheck } from "lucide-react";
 import { apiGet } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import {
@@ -11,6 +11,18 @@ import {
 
 type DirectionFilter = "inbound" | "outbound" | null;
 type StatusFilter = "new" | "open" | "onhold" | "closed" | null;
+
+const AVATAR_COLORS = [
+  "bg-violet-500", "bg-emerald-500", "bg-rose-500", "bg-cyan-500",
+  "bg-fuchsia-500", "bg-teal-500", "bg-pink-500", "bg-indigo-500",
+  "bg-lime-500", "bg-sky-500", "bg-orange-500", "bg-purple-500",
+];
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+}
 
 export default function Dashboard() {
   const [directionFilter, setDirectionFilter] = useState<DirectionFilter>(null);
@@ -56,9 +68,11 @@ export default function Dashboard() {
 
   const { data: chartData } = useQuery({
     queryKey: ["dashboard-charts", directionFilter, statusFilter],
-    queryFn: () => apiGet<{ byProject: { name: string; count: number; items: number }[]; byMonth: { month: string; count: number; items: number }[] }>(
-      `/api/dashboard/stats?${chartParams.toString()}`
-    ),
+    queryFn: () => apiGet<{
+      byProject: { name: string; count: number; items: number }[];
+      byAssignee: { name: string; count: number; items: number }[];
+      byMonth: { month: string; count: number; items: number }[];
+    }>(`/api/dashboard/stats?${chartParams.toString()}`),
   });
 
   const inboundCount = inboundData?.total ?? 0;
@@ -89,6 +103,7 @@ export default function Dashboard() {
   };
 
   const projectData = chartData?.byProject ?? [];
+  const assigneeData = chartData?.byAssignee ?? [];
   const monthData = (chartData?.byMonth ?? []).map(m => ({
     ...m,
     label: formatMonth(m.month),
@@ -99,7 +114,8 @@ export default function Dashboard() {
   if (directionFilter) filterLabels.push(directionStats.find(s => s.key === directionFilter)!.label);
   if (statusFilter) filterLabels.push(statusStats.find(s => s.key === statusFilter)!.label);
 
-  const maxTickets = projectData.length > 0 ? projectData[0].count : 1;
+  const maxProjectTickets = projectData.length > 0 ? projectData[0].count : 1;
+  const maxAssigneeTickets = assigneeData.length > 0 ? assigneeData[0].count : 1;
 
   return (
     <div className="p-8">
@@ -167,8 +183,8 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 mb-6">
-        <Card className="shadow-sm border-slate-200 xl:col-span-2">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
+        <Card className="shadow-sm border-slate-200">
           <CardHeader className="pb-3">
             <CardTitle className="text-lg">Tickets by Project</CardTitle>
             <div className="flex items-center gap-6 text-xs text-slate-400 pt-1">
@@ -182,7 +198,7 @@ export default function Dashboard() {
             ) : (
               <div className="space-y-1">
                 {projectData.map((project, idx) => {
-                  const barWidth = Math.max(4, (project.count / maxTickets) * 100);
+                  const barWidth = Math.max(4, (project.count / maxProjectTickets) * 100);
                   return (
                     <div
                       key={project.name}
@@ -221,30 +237,88 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm border-slate-200 xl:col-span-3">
-          <CardHeader>
-            <CardTitle className="text-lg">Tickets & Items per Month</CardTitle>
+        <Card className="shadow-sm border-slate-200 bg-gradient-to-br from-white to-violet-50/40">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-md bg-violet-100">
+                <UserCheck className="w-4 h-4 text-violet-600" />
+              </div>
+              <CardTitle className="text-lg">Assigned To</CardTitle>
+            </div>
+            <div className="flex items-center gap-6 text-xs text-slate-400 pt-1">
+              <span className="flex items-center gap-1"><FileText className="w-3.5 h-3.5" /> Tickets</span>
+              <span className="flex items-center gap-1"><Package className="w-3.5 h-3.5" /> Items</span>
+            </div>
           </CardHeader>
-          <CardContent>
-            {monthData.length === 0 ? (
+          <CardContent className="pt-0">
+            {assigneeData.length === 0 ? (
               <p className="text-slate-400 text-center py-12">No data</p>
             ) : (
-              <ResponsiveContainer width="100%" height={400}>
-                <ComposedChart data={monthData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="label" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={60} />
-                  <YAxis yAxisId="left" allowDecimals={false} tick={{ fontSize: 12 }} label={{ value: "Tickets", angle: -90, position: "insideLeft", style: { fontSize: 12, fill: "#3b82f6" } }} />
-                  <YAxis yAxisId="right" orientation="right" allowDecimals={false} tick={{ fontSize: 12 }} label={{ value: "Items", angle: 90, position: "insideRight", style: { fontSize: 12, fill: "#f59e0b" } }} />
-                  <Tooltip />
-                  <Legend />
-                  <Bar yAxisId="left" dataKey="count" name="Tickets" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                  <Line yAxisId="right" type="monotone" dataKey="items" name="Items" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
-                </ComposedChart>
-              </ResponsiveContainer>
+              <div className="space-y-1.5">
+                {assigneeData.map((person, idx) => {
+                  const barWidth = Math.max(4, (person.count / maxAssigneeTickets) * 100);
+                  const avatarColor = AVATAR_COLORS[idx % AVATAR_COLORS.length];
+                  return (
+                    <div
+                      key={person.name}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/70 border border-violet-100/60 hover:border-violet-200 hover:shadow-sm transition-all"
+                      data-testid={`row-assignee-${idx}`}
+                    >
+                      <div className={cn("w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0", avatarColor)}>
+                        {getInitials(person.name)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-800 truncate">{person.name}</p>
+                        <div className="mt-1.5 h-1.5 rounded-full bg-violet-100 overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-violet-400 to-fuchsia-400 transition-all duration-500"
+                            style={{ width: `${barWidth}%` }}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <div className="text-right">
+                          <p className="text-sm font-bold text-violet-700">{person.count.toLocaleString()}</p>
+                          <p className="text-[10px] text-violet-400 uppercase tracking-wider">tickets</p>
+                        </div>
+                        <div className="w-px h-8 bg-violet-200/60" />
+                        <div className="text-right">
+                          <p className="text-sm font-bold text-fuchsia-600">{person.items.toLocaleString()}</p>
+                          <p className="text-[10px] text-fuchsia-400 uppercase tracking-wider">items</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </CardContent>
         </Card>
       </div>
+
+      <Card className="shadow-sm border-slate-200 mb-6">
+        <CardHeader>
+          <CardTitle className="text-lg">Tickets & Items per Month</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {monthData.length === 0 ? (
+            <p className="text-slate-400 text-center py-12">No data</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={400}>
+              <ComposedChart data={monthData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="label" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={60} />
+                <YAxis yAxisId="left" allowDecimals={false} tick={{ fontSize: 12 }} label={{ value: "Tickets", angle: -90, position: "insideLeft", style: { fontSize: 12, fill: "#3b82f6" } }} />
+                <YAxis yAxisId="right" orientation="right" allowDecimals={false} tick={{ fontSize: 12 }} label={{ value: "Items", angle: 90, position: "insideRight", style: { fontSize: 12, fill: "#f59e0b" } }} />
+                <Tooltip />
+                <Legend />
+                <Bar yAxisId="left" dataKey="count" name="Tickets" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                <Line yAxisId="right" type="monotone" dataKey="items" name="Items" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

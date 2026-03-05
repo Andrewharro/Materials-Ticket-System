@@ -86,7 +86,7 @@ export interface IStorage {
   deleteAppRole(id: number): Promise<void>;
 
   saveTicketWithItems(ticketData: Partial<InsertTicket> & { id?: number }, itemsData: (InsertTicketItem & { id?: number })[]): Promise<{ ticket: Ticket; items: TicketItem[] }>;
-  getDashboardStats(direction?: string, status?: string): Promise<{ byProject: { name: string; count: number; items: number }[]; byMonth: { month: string; count: number; items: number }[] }>;
+  getDashboardStats(direction?: string, status?: string): Promise<{ byProject: { name: string; count: number; items: number }[]; byAssignee: { name: string; count: number; items: number }[]; byMonth: { month: string; count: number; items: number }[] }>;
   getDistinctColumnValues(direction: string, column: string, search?: string, subcontractorId?: number): Promise<string[]>;
 }
 
@@ -492,7 +492,7 @@ export class DatabaseStorage implements IStorage {
       return { ticket, items: savedItems };
     });
   }
-  async getDashboardStats(direction?: string, status?: string): Promise<{ byProject: { name: string; count: number; items: number }[]; byMonth: { month: string; count: number; items: number }[] }> {
+  async getDashboardStats(direction?: string, status?: string): Promise<{ byProject: { name: string; count: number; items: number }[]; byAssignee: { name: string; count: number; items: number }[]; byMonth: { month: string; count: number; items: number }[] }> {
     const conditions: any[] = [];
     if (direction) conditions.push(eq(tickets.direction, direction as any));
     if (status) conditions.push(eq(tickets.status, status));
@@ -510,6 +510,18 @@ export class DatabaseStorage implements IStorage {
       .groupBy(tickets.projectName)
       .orderBy(desc(sql`COUNT(DISTINCT ${tickets.id})`));
 
+    const assigneeRows = await db
+      .select({
+        name: tickets.assignedToName,
+        count: sql<number>`COUNT(DISTINCT ${tickets.id})`,
+        items: sql<number>`COUNT(${ticketItems.id})`,
+      })
+      .from(tickets)
+      .leftJoin(ticketItems, eq(ticketItems.ticketId, tickets.id))
+      .where(whereClause)
+      .groupBy(tickets.assignedToName)
+      .orderBy(desc(sql`COUNT(DISTINCT ${tickets.id})`));
+
     const monthRows = await db
       .select({
         month: sql<string>`TO_CHAR(${tickets.createdAt}, 'YYYY-MM')`,
@@ -524,6 +536,7 @@ export class DatabaseStorage implements IStorage {
 
     return {
       byProject: projectRows.map(r => ({ name: r.name || "Unknown", count: Number(r.count), items: Number(r.items) })),
+      byAssignee: assigneeRows.map(r => ({ name: r.name || "Unassigned", count: Number(r.count), items: Number(r.items) })),
       byMonth: monthRows.map(r => ({ month: r.month, count: Number(r.count), items: Number(r.items) })),
     };
   }
