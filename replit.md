@@ -32,8 +32,9 @@ Enums: user_role (USER/COORDINATOR/ADMIN), ticket_direction (INBOUND/OUTBOUND), 
 
 ## Imported Data (from SharePoint XLSX)
 - 1,869 tickets with legacy IDs; Excel TicketID = SharePoint ID = tickets.legacy_id (NOT tickets.id)
-- 39,572 ticket items (1,592 inbound + 37,980 outbound); batch-imported with direction derived from parent ticket
-- Item direction is derived from the parent ticket's direction (not from the filename)
+- 39,572 ticket items (1,592 inbound + 37,980 outbound); batch-imported
+- Relationship: Tickets.xlsx [ID] = tickets.legacy_id; ItemsInbound [TicketID] → INBOUND tickets; ItemsOutbound [TicketID] → OUTBOUND tickets
+- Item direction matches file source: ItemsInbound→INBOUND, ItemsOutbound→OUTBOUND; validated against ticket direction
 - Items linked via composite unique key (legacyId, direction); direction integrity enforced
 - 49 subcontractors, 13 departments, 11 department techs, 6 ticket statuses
 - 34 users derived from ticket owner/assigned emails

@@ -394,12 +394,13 @@ async function importTickets(
 
 async function importItems(
   filename: string,
+  direction: "INBOUND" | "OUTBOUND",
   legacyToNewId: Map<number, number>,
   ticketDirectionMap: Map<number, string>
 ) {
-  console.log(`\n--- Importing Items from ${filename} ---`);
+  console.log(`\n--- Importing ${direction} Items from ${filename} ---`);
   const rows = readXlsx(filename);
-  let inserted = 0, updated = 0, skipped = 0, missingTicket = 0, blankRows = 0;
+  let inserted = 0, updated = 0, skipped = 0, missingTicket = 0, blankRows = 0, dirMismatch = 0;
 
   const existingItems = await db.select({
     id: ticketItems.id,
@@ -423,8 +424,13 @@ async function importItems(
     const newTicketId = legacyToNewId.get(legacyTicketId);
     if (!newTicketId) { missingTicket++; continue; }
 
-    const direction = ticketDirectionMap.get(newTicketId) as "INBOUND" | "OUTBOUND";
-    if (!direction) { missingTicket++; continue; }
+    const ticketDir = ticketDirectionMap.get(newTicketId);
+    if (!ticketDir) { missingTicket++; continue; }
+
+    if (ticketDir !== direction) {
+      dirMismatch++;
+      continue;
+    }
 
     const itemCode = str(col(row, "ItemCode"), 255);
     const description = str(col(row, "Description"));
@@ -468,10 +474,17 @@ async function importItems(
   for (let i = 0; i < toInsert.length; i += BATCH) {
     await db.insert(ticketItems).values(toInsert.slice(i, i + BATCH));
   }
-  for (const { id, data } of toUpdate) {
-    await db.update(ticketItems).set(data).where(eq(ticketItems.id, id));
+  const UPDATE_BATCH = 100;
+  for (let i = 0; i < toUpdate.length; i += UPDATE_BATCH) {
+    const batch = toUpdate.slice(i, i + UPDATE_BATCH);
+    await Promise.all(batch.map(({ id, data }) =>
+      db.update(ticketItems).set(data).where(eq(ticketItems.id, id))
+    ));
   }
 
+  if (dirMismatch > 0) {
+    console.log(`  WARNING: ${dirMismatch} rows skipped — TicketID references a ticket with direction != ${direction}`);
+  }
   console.log(`  Inserted: ${inserted}, Updated: ${updated}, Skipped: ${skipped}, Missing ticket: ${missingTicket}, Blank: ${blankRows}`);
 }
 
@@ -495,8 +508,8 @@ async function main() {
   }
   console.log(`\nBuilt ticket direction map: ${ticketDirectionMap.size} tickets`);
 
-  await importItems("ItemsInbound.xlsx", legacyToNewId, ticketDirectionMap);
-  await importItems("ItemsOutbound.xlsx", legacyToNewId, ticketDirectionMap);
+  await importItems("ItemsInbound.xlsx", "INBOUND", legacyToNewId, ticketDirectionMap);
+  await importItems("ItemsOutbound.xlsx", "OUTBOUND", legacyToNewId, ticketDirectionMap);
 
   console.log("\n=== Import Complete ===");
   process.exit(0);
