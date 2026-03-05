@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -9,10 +9,92 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { ChevronDown, ChevronUp, Plus, Pencil, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus, Pencil, Trash2, Check, ChevronsUpDown, Search } from "lucide-react";
 import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+
+function SearchableSelect({ value, onValueChange, options, placeholder = "Select..." }: {
+  value: string;
+  onValueChange: (val: string) => void;
+  options: { value: string; label: string }[];
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (open && inputRef.current) inputRef.current.focus();
+  }, [open]);
+
+  const selectedLabel = options.find(o => o.value === value)?.label;
+  const filtered = options.filter(o => o.label.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => { setOpen(!open); setSearch(""); }}
+        className={cn(
+          "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background",
+          "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+          !selectedLabel && "text-muted-foreground"
+        )}
+        data-testid="select-user-subcontractor"
+      >
+        <span className="truncate">{selectedLabel || placeholder}</span>
+        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+      </button>
+      {open && (
+        <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-lg">
+          <div className="flex items-center border-b px-3">
+            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+            <input
+              ref={inputRef}
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search..."
+              className="flex h-10 w-full bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground"
+            />
+          </div>
+          <div className="max-h-60 overflow-y-auto p-1">
+            {filtered.length === 0 ? (
+              <div className="py-6 text-center text-sm text-muted-foreground">No results found</div>
+            ) : (
+              filtered.map(option => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => { onValueChange(option.value); setOpen(false); setSearch(""); }}
+                  className={cn(
+                    "relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none",
+                    "hover:bg-accent hover:text-accent-foreground",
+                    value === option.value && "bg-accent"
+                  )}
+                >
+                  <Check className={cn("mr-2 h-4 w-4", value === option.value ? "opacity-100" : "opacity-0")} />
+                  {option.label}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function SettingsUsers() {
   const { toast } = useToast();
@@ -314,14 +396,12 @@ export default function SettingsUsers() {
             {isSubcontractorRole(userForm.role) && (
               <div className="space-y-2">
                 <Label>Subcontractor Company</Label>
-                <Select value={userForm.subcontractorId} onValueChange={v => setUserForm({ ...userForm, subcontractorId: v })}>
-                  <SelectTrigger data-testid="select-user-subcontractor"><SelectValue placeholder="Select a subcontractor..." /></SelectTrigger>
-                  <SelectContent>
-                    {subcontractors.map((sc: any) => (
-                      <SelectItem key={sc.id} value={String(sc.id)}>{sc.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  value={userForm.subcontractorId}
+                  onValueChange={v => setUserForm({ ...userForm, subcontractorId: v })}
+                  options={subcontractors.map((sc: any) => ({ value: String(sc.id), label: sc.name }))}
+                  placeholder="Search subcontractors..."
+                />
               </div>
             )}
             <div className="space-y-2">
