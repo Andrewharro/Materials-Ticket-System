@@ -62,6 +62,7 @@ export default function TicketDetail() {
 
   const isNew = !params.id || params.id === "new";
   const ticketId = isNew ? undefined : parseInt(params.id);
+  const isReadOnly = currentUser?.role === "SUBCONTRACTOR";
 
   const searchParams = new URLSearchParams(searchString);
   const directionParam = (searchParams.get("direction") || "INBOUND") as "INBOUND" | "OUTBOUND";
@@ -138,8 +139,8 @@ export default function TicketDetail() {
   const ticketDirection = isNew ? directionParam : ticket?.direction;
   const backPath = ticketDirection === "OUTBOUND" ? "/outbound" : "/inbound";
 
-  const canEdit = isNew || currentUser?.role === "ADMIN" || currentUser?.role === "COORDINATOR" ||
-    (currentUser?.role === "USER" && ticket?.createdByUserId === currentUser?.id);
+  const canEdit = !isReadOnly && (isNew || currentUser?.role === "ADMIN" || currentUser?.role === "COORDINATOR" ||
+    (currentUser?.role === "USER" && ticket?.createdByUserId === currentUser?.id));
 
   const hasUnsavedData = useCallback(() => {
     if (!isNew) return false;
@@ -529,7 +530,7 @@ export default function TicketDetail() {
                   ))
                 )}
               </div>
-              {!isNew && (
+              {!isNew && !isReadOnly && (
                 <div className="flex gap-2">
                   <Input
                     placeholder="Type a message..."

@@ -7,6 +7,7 @@ export interface JWTPayload {
   userId: number;
   email: string;
   role: string;
+  subcontractorId?: number | null;
 }
 
 declare global {

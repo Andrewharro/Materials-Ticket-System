@@ -19,6 +19,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   ];
 
   const isAdmin = user?.role === "ADMIN";
+  const isSubcontractor = user?.role === "SUBCONTRACTOR";
 
   const settingItems = [
     { href: "/settings/users", label: "Users & Roles", icon: Users },

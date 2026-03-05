@@ -32,7 +32,7 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
-      const token = signToken({ userId: user.id, email: user.email, role: user.role });
+      const token = signToken({ userId: user.id, email: user.email, role: user.role, subcontractorId: user.subcontractorId });
       const { passwordHash: _, ...safeUser } = user;
       res.json({ token, user: safeUser });
     } catch (err: any) {
@@ -57,7 +57,7 @@ export async function registerRoutes(
 
   app.get("/api/tickets", requireAuth, async (req, res) => {
     try {
-      const filters = {
+      const filters: any = {
         direction: req.query.direction as any,
         statusKey: req.query.statusKey as string,
         status: req.query.status as string,
@@ -70,6 +70,12 @@ export async function registerRoutes(
         page: req.query.page ? parseInt(req.query.page as string) : 1,
         pageSize: req.query.pageSize ? parseInt(req.query.pageSize as string) : 25,
       };
+      if (req.user?.role === "SUBCONTRACTOR") {
+        if (!req.user.subcontractorId) {
+          return res.json({ tickets: [], total: 0 });
+        }
+        filters.subcontractorId = req.user.subcontractorId;
+      }
       const result = await storage.listTickets(filters);
       res.json(result);
     } catch (err: any) {
@@ -82,13 +88,25 @@ export async function registerRoutes(
       const id = parseInt(req.params.id);
       const ticket = await storage.getTicketWithRelations(id);
       if (!ticket) return res.status(404).json({ message: "Ticket not found" });
+      if (req.user?.role === "SUBCONTRACTOR") {
+        if (!req.user.subcontractorId || ticket.subcontractorId !== req.user.subcontractorId) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+      }
       res.json(ticket);
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
   });
 
-  app.post("/api/tickets", requireAuth, async (req, res) => {
+  const denySubcontractor = (req: any, res: any, next: any) => {
+    if (req.user?.role === "SUBCONTRACTOR") {
+      return res.status(403).json({ message: "Subcontractors have read-only access" });
+    }
+    next();
+  };
+
+  app.post("/api/tickets", requireAuth, denySubcontractor, async (req, res) => {
     try {
       const user = await storage.getUser(req.user!.userId);
       if (!user) return res.status(401).json({ message: "User not found" });
@@ -107,7 +125,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/tickets/create-full", requireAuth, async (req, res) => {
+  app.post("/api/tickets/create-full", requireAuth, denySubcontractor, async (req, res) => {
     try {
       const user = await storage.getUser(req.user!.userId);
       if (!user) return res.status(401).json({ message: "User not found" });
@@ -143,7 +161,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/tickets/:id/save", requireAuth, async (req, res) => {
+  app.post("/api/tickets/:id/save", requireAuth, denySubcontractor, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const { ticket: ticketData, items: itemsData } = req.body;
@@ -176,7 +194,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/tickets/:id/messages", requireAuth, async (req, res) => {
+  app.post("/api/tickets/:id/messages", requireAuth, denySubcontractor, async (req, res) => {
     try {
       const ticketId = parseInt(req.params.id);
       const { messageText } = req.body;

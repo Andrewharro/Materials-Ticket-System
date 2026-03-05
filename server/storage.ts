@@ -21,6 +21,7 @@ export interface TicketFilters {
   status?: string;
   ownerName?: string;
   assignedToName?: string;
+  subcontractorId?: number;
   serviceOrder?: string;
   state?: string;
   projectName?: string;
@@ -107,6 +108,9 @@ export class DatabaseStorage implements IStorage {
 
     if (filters.direction) {
       conditions.push(eq(tickets.direction, filters.direction));
+    }
+    if (filters.subcontractorId) {
+      conditions.push(eq(tickets.subcontractorId, filters.subcontractorId));
     }
     if (filters.statusKey && filters.statusKey !== "All") {
       conditions.push(eq(tickets.statusKey, filters.statusKey as any));
