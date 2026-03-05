@@ -170,6 +170,7 @@ export class DatabaseStorage implements IStorage {
         ilike(tickets.internalComments, s),
         ilike(tickets.goodsReceipt, s),
         sql`CAST(${tickets.id} AS TEXT) ILIKE ${s}`,
+        sql`CAST(${tickets.legacyId} AS TEXT) ILIKE ${s}`,
         sql`TO_CHAR(${tickets.requestedDeliveryDate}, 'YYYY-MM-DD') ILIKE ${s}`,
         sql`TO_CHAR(${tickets.pickupDate}, 'YYYY-MM-DD') ILIKE ${s}`,
         sql`TO_CHAR(${tickets.createdAt}, 'YYYY-MM-DD') ILIKE ${s}`,
@@ -199,7 +200,9 @@ export class DatabaseStorage implements IStorage {
         if (!filterVal) continue;
         if (colKey === "id") {
           const numVal = parseInt(filterVal, 10);
-          if (!isNaN(numVal)) conditions.push(eq(tickets.id, numVal));
+          if (!isNaN(numVal)) {
+            conditions.push(or(eq(tickets.id, numVal), eq(tickets.legacyId, numVal))!);
+          }
           continue;
         }
         const col = ticketColumnMap[colKey];
@@ -483,9 +486,9 @@ export class DatabaseStorage implements IStorage {
     if (column === "id") {
       const conditions: any[] = [eq(tickets.direction, direction as any)];
       if (subcontractorId) conditions.push(eq(tickets.subcontractorId, subcontractorId));
-      if (search) conditions.push(sql`CAST(${tickets.id} AS TEXT) ILIKE ${'%' + search + '%'}`);
-      const rows = await db.selectDistinct({ value: sql<string>`CAST(${tickets.id} AS TEXT)` })
-        .from(tickets).where(and(...conditions)).orderBy(asc(tickets.id)).limit(100);
+      if (search) conditions.push(sql`CAST(${tickets.legacyId} AS TEXT) ILIKE ${'%' + search + '%'}`);
+      const rows = await db.selectDistinct({ value: sql<string>`CAST(${tickets.legacyId} AS TEXT)` })
+        .from(tickets).where(and(...conditions)).orderBy(asc(tickets.legacyId)).limit(100);
       return rows.map(r => r.value).filter((v): v is string => v != null && v !== "");
     }
 
