@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { users, ticketStatuses } from "@shared/schema";
+import { users, ticketStatuses, appRoles } from "@shared/schema";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 
@@ -28,5 +28,15 @@ export async function seed() {
       { title: "Not Assigned", key: "NOT_ASSIGNED", sortOrder: 5 },
     ]);
     console.log("Seeded default ticket statuses");
+  }
+
+  const existingRoles = await db.select().from(appRoles);
+  if (existingRoles.length === 0) {
+    await db.insert(appRoles).values([
+      { key: "USER", label: "User", description: "Can create tickets and edit own drafts", sortOrder: 1 },
+      { key: "COORDINATOR", label: "Coordinator", description: "Can edit any ticket, gets assigned tickets", sortOrder: 2 },
+      { key: "ADMIN", label: "Admin", description: "Full access including settings and user management", sortOrder: 3 },
+    ]);
+    console.log("Seeded default roles");
   }
 }

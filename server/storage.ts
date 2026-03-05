@@ -2,7 +2,7 @@ import { db } from "./db";
 import {
   users, tickets, ticketItems, ticketMessages,
   subcontractors, departments, departmentTechs, ticketStatuses,
-  appSettings, emailLogs,
+  appSettings, emailLogs, appRoles,
   type InsertUser, type User,
   type InsertTicket, type Ticket,
   type InsertTicketItem, type TicketItem,
@@ -11,6 +11,7 @@ import {
   type InsertDepartment, type Department,
   type InsertDepartmentTech, type DepartmentTech,
   type InsertTicketStatus, type TicketStatus,
+  type InsertAppRole, type AppRole,
 } from "@shared/schema";
 import { eq, and, or, ilike, sql, desc, asc, count } from "drizzle-orm";
 
@@ -67,6 +68,11 @@ export interface IStorage {
   createTicketStatus(s: InsertTicketStatus): Promise<TicketStatus>;
   updateTicketStatus(id: number, data: Partial<InsertTicketStatus>): Promise<TicketStatus | undefined>;
   deleteTicketStatus(id: number): Promise<void>;
+
+  listAppRoles(): Promise<AppRole[]>;
+  createAppRole(r: InsertAppRole): Promise<AppRole>;
+  updateAppRole(id: number, data: Partial<InsertAppRole>): Promise<AppRole | undefined>;
+  deleteAppRole(id: number): Promise<void>;
 
   saveTicketWithItems(ticketData: Partial<InsertTicket> & { id?: number }, itemsData: (InsertTicketItem & { id?: number })[]): Promise<{ ticket: Ticket; items: TicketItem[] }>;
 }
@@ -287,6 +293,24 @@ export class DatabaseStorage implements IStorage {
 
   async deleteTicketStatus(id: number): Promise<void> {
     await db.delete(ticketStatuses).where(eq(ticketStatuses.id, id));
+  }
+
+  async listAppRoles(): Promise<AppRole[]> {
+    return db.select().from(appRoles).orderBy(asc(appRoles.sortOrder), asc(appRoles.key));
+  }
+
+  async createAppRole(r: InsertAppRole): Promise<AppRole> {
+    const [created] = await db.insert(appRoles).values(r).returning();
+    return created;
+  }
+
+  async updateAppRole(id: number, data: Partial<InsertAppRole>): Promise<AppRole | undefined> {
+    const [updated] = await db.update(appRoles).set({ ...data, updatedAt: new Date() }).where(eq(appRoles.id, id)).returning();
+    return updated;
+  }
+
+  async deleteAppRole(id: number): Promise<void> {
+    await db.delete(appRoles).where(eq(appRoles.id, id));
   }
 
   async saveTicketWithItems(

@@ -282,6 +282,24 @@ export const insertTicketStatusSchema = createInsertSchema(ticketStatuses).omit(
 export type InsertTicketStatus = z.infer<typeof insertTicketStatusSchema>;
 export type TicketStatus = typeof ticketStatuses.$inferSelect;
 
+export const appRoles = pgTable("app_roles", {
+  id: serial("id").primaryKey(),
+  key: varchar("key", { length: 50 }).notNull().unique(),
+  label: varchar("label", { length: 255 }).notNull(),
+  description: text("description"),
+  sortOrder: integer("sort_order"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertAppRoleSchema = createInsertSchema(appRoles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertAppRole = z.infer<typeof insertAppRoleSchema>;
+export type AppRole = typeof appRoles.$inferSelect;
+
 export const insertAppSettingSchema = createInsertSchema(appSettings).omit({
   id: true,
   updatedAt: true,
