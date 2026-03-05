@@ -57,6 +57,10 @@ interface SavedView {
   id: string;
   name: string;
   columns: string[];
+  sortBy?: string | null;
+  sortOrder?: "asc" | "desc";
+  columnFilters?: Record<string, string>;
+  statusFilter?: string;
 }
 
 function statusColor(status: string) {
@@ -139,10 +143,14 @@ function useDebounce<T>(value: T, delay: number): T {
   return debounced;
 }
 
-function ViewsPanel({ direction, currentColumns, onApplyView }: {
+function ViewsPanel({ direction, currentColumns, currentSortBy, currentSortOrder, currentColumnFilters, currentStatusFilter, onApplyView }: {
   direction: string;
   currentColumns: string[];
-  onApplyView: (columns: string[], viewId: string | null) => void;
+  currentSortBy: string | null;
+  currentSortOrder: "asc" | "desc";
+  currentColumnFilters: Record<string, string>;
+  currentStatusFilter: string;
+  onApplyView: (view: { columns: string[]; sortBy: string | null; sortOrder: "asc" | "desc"; columnFilters: Record<string, string>; statusFilter: string }, viewId: string | null) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [views, setViews] = useState<SavedView[]>(() => loadViews(direction));
@@ -171,6 +179,10 @@ function ViewsPanel({ direction, currentColumns, onApplyView }: {
       id: Date.now().toString(),
       name: newName.trim(),
       columns: [...currentColumns],
+      sortBy: currentSortBy,
+      sortOrder: currentSortOrder,
+      columnFilters: { ...currentColumnFilters },
+      statusFilter: currentStatusFilter,
     };
     const updated = [...views, view];
     setViews(updated);
@@ -184,7 +196,13 @@ function ViewsPanel({ direction, currentColumns, onApplyView }: {
   const handleSelectView = (view: SavedView) => {
     setActiveViewId(view.id);
     saveActiveViewId(direction, view.id);
-    onApplyView(view.columns, view.id);
+    onApplyView({
+      columns: view.columns,
+      sortBy: view.sortBy ?? null,
+      sortOrder: view.sortOrder ?? "desc",
+      columnFilters: view.columnFilters ?? {},
+      statusFilter: view.statusFilter ?? "All",
+    }, view.id);
     setOpen(false);
   };
 
@@ -213,7 +231,14 @@ function ViewsPanel({ direction, currentColumns, onApplyView }: {
   };
 
   const handleUpdateView = (view: SavedView) => {
-    const updated = views.map(v => v.id === view.id ? { ...v, columns: [...currentColumns] } : v);
+    const updated = views.map(v => v.id === view.id ? {
+      ...v,
+      columns: [...currentColumns],
+      sortBy: currentSortBy,
+      sortOrder: currentSortOrder,
+      columnFilters: { ...currentColumnFilters },
+      statusFilter: currentStatusFilter,
+    } : v);
     setViews(updated);
     saveViews(direction, updated);
   };
@@ -221,7 +246,13 @@ function ViewsPanel({ direction, currentColumns, onApplyView }: {
   const handleClearView = () => {
     setActiveViewId(null);
     saveActiveViewId(direction, null);
-    onApplyView(DEFAULT_VISIBLE, null);
+    onApplyView({
+      columns: DEFAULT_VISIBLE,
+      sortBy: null,
+      sortOrder: "desc",
+      columnFilters: {},
+      statusFilter: "All",
+    }, null);
     setOpen(false);
   };
 
@@ -279,7 +310,9 @@ function ViewsPanel({ direction, currentColumns, onApplyView }: {
                       data-testid={`button-select-view-${view.id}`}
                     >
                       {view.name}
-                      <span className="text-xs text-slate-400 ml-1">({view.columns.length} cols)</span>
+                      <span className="text-xs text-slate-400 ml-1">
+                        ({view.columns.length} cols{view.sortBy ? ", sorted" : ""}{view.columnFilters && Object.values(view.columnFilters).some(v => v) ? ", filtered" : ""})
+                      </span>
                     </button>
                     <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
@@ -519,9 +552,17 @@ export default function TicketTable({ direction }: { direction: "INBOUND" | "OUT
     setPage(1);
   }, []);
 
-  const handleApplyView = (columns: string[], _viewId: string | null) => {
-    setVisibleColumns(columns);
-    saveColumnConfig(direction, columns);
+  const handleApplyView = (view: { columns: string[]; sortBy: string | null; sortOrder: "asc" | "desc"; columnFilters: Record<string, string>; statusFilter: string }, _viewId: string | null) => {
+    setVisibleColumns(view.columns);
+    saveColumnConfig(direction, view.columns);
+    setSortBy(view.sortBy);
+    setSortOrder(view.sortOrder);
+    setColumnFilters(view.columnFilters);
+    setStatusFilter(view.statusFilter);
+    if (Object.values(view.columnFilters).some(v => v.length > 0)) {
+      setShowFilters(true);
+    }
+    setPage(1);
   };
 
   const params = new URLSearchParams();
@@ -608,6 +649,10 @@ export default function TicketTable({ direction }: { direction: "INBOUND" | "OUT
           <ViewsPanel
             direction={direction}
             currentColumns={visibleColumns}
+            currentSortBy={sortBy}
+            currentSortOrder={sortOrder}
+            currentColumnFilters={columnFilters}
+            currentStatusFilter={statusFilter}
             onApplyView={handleApplyView}
           />
           <ColumnConfigPanel
