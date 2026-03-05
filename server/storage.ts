@@ -28,6 +28,9 @@ export interface TicketFilters {
   search?: string;
   page?: number;
   pageSize?: number;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+  columnFilters?: Record<string, string>;
 }
 
 export interface IStorage {
@@ -151,13 +154,71 @@ export class DatabaseStorage implements IStorage {
       conditions.push(or(...searchConds));
     }
 
+    if (filters.columnFilters) {
+      const ticketColumnMap: Record<string, any> = {
+        id: tickets.id, status: tickets.status, serviceOrder: tickets.serviceOrder,
+        projectName: tickets.projectName, state: tickets.state, ownerName: tickets.ownerName,
+        assignedToName: tickets.assignedToName, priority: tickets.priority, warehouse: tickets.warehouse,
+        ownerEmail: tickets.ownerEmail, assignedToEmail: tickets.assignedToEmail,
+        deliveryOrPickup: tickets.deliveryOrPickup, deliveringTo: tickets.deliveringTo,
+        siteNameCoordinates: tickets.siteNameCoordinates, deliveryAddress: tickets.deliveryAddress,
+        deliveryTimeSlots: tickets.deliveryTimeSlots, driverKey: tickets.driverKey,
+        deliverySignoff: tickets.deliverySignoff, accessConditions: tickets.accessConditions,
+        liftingEquipment: tickets.liftingEquipment, steelWork: tickets.steelWork,
+        receiversName: tickets.receiversName, receiversPhone: tickets.receiversPhone,
+        pickupTime: tickets.pickupTime, subcontractorName: tickets.subcontractorName,
+        subcontractorEmail: tickets.subcontractorEmail, internalComments: tickets.internalComments,
+        goodsReceipt: tickets.goodsReceipt,
+      };
+      for (const [colKey, filterVal] of Object.entries(filters.columnFilters)) {
+        if (!filterVal) continue;
+        if (colKey === "id") {
+          const numVal = parseInt(filterVal, 10);
+          if (!isNaN(numVal)) conditions.push(eq(tickets.id, numVal));
+          continue;
+        }
+        const col = ticketColumnMap[colKey];
+        if (col) {
+          conditions.push(ilike(col, `%${filterVal}%`));
+        } else if (colKey === "requestedDeliveryDate" || colKey === "pickupDate" || colKey === "createdAt" || colKey === "updatedAt" || colKey === "closedAt") {
+          conditions.push(sql`CAST(${colKey === "requestedDeliveryDate" ? tickets.requestedDeliveryDate : colKey === "pickupDate" ? tickets.pickupDate : colKey === "createdAt" ? tickets.createdAt : colKey === "updatedAt" ? tickets.updatedAt : tickets.closedAt} AS TEXT) ILIKE ${"%" + filterVal + "%"}`);
+        }
+      }
+    }
+
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
     const page = filters.page || 1;
     const pageSize = filters.pageSize || 25;
 
+    const sortColumnMap: Record<string, any> = {
+      id: tickets.id, status: tickets.status, serviceOrder: tickets.serviceOrder,
+      projectName: tickets.projectName, state: tickets.state, ownerName: tickets.ownerName,
+      assignedToName: tickets.assignedToName, priority: tickets.priority, warehouse: tickets.warehouse,
+      ownerEmail: tickets.ownerEmail, assignedToEmail: tickets.assignedToEmail,
+      deliveryOrPickup: tickets.deliveryOrPickup, deliveringTo: tickets.deliveringTo,
+      siteNameCoordinates: tickets.siteNameCoordinates, deliveryAddress: tickets.deliveryAddress,
+      requestedDeliveryDate: tickets.requestedDeliveryDate, deliveryTimeSlots: tickets.deliveryTimeSlots,
+      driverKey: tickets.driverKey, deliverySignoff: tickets.deliverySignoff,
+      accessConditions: tickets.accessConditions, liftingEquipment: tickets.liftingEquipment,
+      steelWork: tickets.steelWork, receiversName: tickets.receiversName,
+      receiversPhone: tickets.receiversPhone, pickupDate: tickets.pickupDate,
+      pickupTime: tickets.pickupTime, subcontractorName: tickets.subcontractorName,
+      subcontractorEmail: tickets.subcontractorEmail, internalComments: tickets.internalComments,
+      goodsReceipt: tickets.goodsReceipt, createdAt: tickets.createdAt,
+      updatedAt: tickets.updatedAt, closedAt: tickets.closedAt,
+    };
+
+    let orderClause;
+    if (filters.sortBy && sortColumnMap[filters.sortBy]) {
+      const col = sortColumnMap[filters.sortBy];
+      orderClause = filters.sortOrder === "asc" ? asc(col) : desc(col);
+    } else {
+      orderClause = desc(tickets.id);
+    }
+
     const [{ total: totalCount }] = await db.select({ total: count() }).from(tickets).where(whereClause);
-    const rows = await db.select().from(tickets).where(whereClause).orderBy(desc(tickets.id)).limit(pageSize).offset((page - 1) * pageSize);
+    const rows = await db.select().from(tickets).where(whereClause).orderBy(orderClause).limit(pageSize).offset((page - 1) * pageSize);
 
     return { tickets: rows, total: Number(totalCount) };
   }

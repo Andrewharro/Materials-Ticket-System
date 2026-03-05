@@ -73,7 +73,14 @@ export async function registerRoutes(
         search: req.query.search as string,
         page: req.query.page ? parseInt(req.query.page as string) : 1,
         pageSize: req.query.pageSize ? parseInt(req.query.pageSize as string) : 25,
+        sortBy: req.query.sortBy as string,
+        sortOrder: req.query.sortOrder as string,
       };
+      if (req.query.cf) {
+        try {
+          filters.columnFilters = JSON.parse(req.query.cf as string);
+        } catch {}
+      }
       if (req.user?.role === "SUBCONTRACTOR") {
         if (!req.user.subcontractorId) {
           return res.json({ tickets: [], total: 0 });

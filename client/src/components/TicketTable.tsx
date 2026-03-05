@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Columns3, GripVertical, Eye, EyeOff, LayoutGrid, Save, Pencil, Trash2, Check, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Columns3, GripVertical, Eye, EyeOff, LayoutGrid, Save, Pencil, Trash2, Check, X, ArrowUp, ArrowDown, ArrowUpDown, Filter } from "lucide-react";
 import { apiGet } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
@@ -128,6 +128,15 @@ function saveActiveViewId(direction: string, id: string | null) {
   } else {
     localStorage.removeItem(`ticketActiveView_${direction}`);
   }
+}
+
+function useDebounce<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(t);
+  }, [value, delay]);
+  return debounced;
 }
 
 function ViewsPanel({ direction, currentColumns, onApplyView }: {
@@ -476,6 +485,39 @@ export default function TicketTable({ direction }: { direction: "INBOUND" | "OUT
   const [page, setPage] = useState(1);
   const pageSize = 25;
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => loadColumnConfig(direction));
+  const [sortBy, setSortBy] = useState<string | null>(null);
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
+  const [showFilters, setShowFilters] = useState(false);
+
+  const debouncedColumnFilters = useDebounce(columnFilters, 400);
+  const activeFilterCount = Object.values(columnFilters).filter(v => v.length > 0).length;
+
+  const handleSort = useCallback((key: string) => {
+    if (sortBy === key) {
+      if (sortOrder === "asc") {
+        setSortOrder("desc");
+      } else {
+        setSortBy(null);
+      }
+    } else {
+      setSortBy(key);
+      setSortOrder("asc");
+    }
+    setPage(1);
+  }, [sortBy, sortOrder]);
+
+  const handleColumnFilterChange = useCallback((key: string, value: string) => {
+    setColumnFilters(prev => ({ ...prev, [key]: value }));
+    setPage(1);
+  }, []);
+
+  const clearAllFilters = useCallback(() => {
+    setColumnFilters({});
+    setStatusFilter("All");
+    setSearchTerm("");
+    setPage(1);
+  }, []);
 
   const handleApplyView = (columns: string[], _viewId: string | null) => {
     setVisibleColumns(columns);
@@ -488,9 +530,20 @@ export default function TicketTable({ direction }: { direction: "INBOUND" | "OUT
   params.set("pageSize", pageSize.toString());
   if (statusFilter !== "All") params.set("status", statusFilter);
   if (searchTerm) params.set("search", searchTerm);
+  if (sortBy) {
+    params.set("sortBy", sortBy);
+    params.set("sortOrder", sortOrder);
+  }
+  const cfObj: Record<string, string> = {};
+  for (const [k, v] of Object.entries(debouncedColumnFilters)) {
+    if (v) cfObj[k] = v;
+  }
+  if (Object.keys(cfObj).length > 0) {
+    params.set("cf", JSON.stringify(cfObj));
+  }
 
   const { data, isLoading } = useQuery({
-    queryKey: ["tickets", direction, statusFilter, searchTerm, page],
+    queryKey: ["tickets", direction, statusFilter, searchTerm, page, sortBy, sortOrder, debouncedColumnFilters],
     queryFn: () => apiGet<any>(`/api/tickets?${params.toString()}`),
   });
 
@@ -499,9 +552,18 @@ export default function TicketTable({ direction }: { direction: "INBOUND" | "OUT
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const colCount = visibleColumns.length;
 
+  const SortIcon = ({ columnKey }: { columnKey: string }) => {
+    if (sortBy !== columnKey) {
+      return <ArrowUpDown className="w-3 h-3 text-slate-300 ml-1 inline-block" />;
+    }
+    return sortOrder === "asc"
+      ? <ArrowUp className="w-3 h-3 text-blue-600 ml-1 inline-block" />
+      : <ArrowDown className="w-3 h-3 text-blue-600 ml-1 inline-block" />;
+  };
+
   return (
     <div className="space-y-4">
-      <div className="flex gap-4 mb-6 items-center">
+      <div className="flex gap-4 mb-6 items-center flex-wrap">
         <Input
           placeholder="Search tickets..."
           value={searchTerm}
@@ -522,6 +584,26 @@ export default function TicketTable({ direction }: { direction: "INBOUND" | "OUT
             <SelectItem value="Not Assigned">Not Assigned</SelectItem>
           </SelectContent>
         </Select>
+        <Button
+          variant={showFilters ? "default" : "outline"}
+          size="sm"
+          onClick={() => setShowFilters(!showFilters)}
+          data-testid="button-toggle-filters"
+          className={cn(activeFilterCount > 0 && !showFilters && "border-blue-400 text-blue-700 bg-blue-50")}
+        >
+          <Filter className="w-4 h-4 mr-1" />
+          Filters
+          {activeFilterCount > 0 && (
+            <span className="ml-1 bg-blue-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+              {activeFilterCount}
+            </span>
+          )}
+        </Button>
+        {activeFilterCount > 0 && (
+          <Button variant="ghost" size="sm" onClick={clearAllFilters} className="text-slate-500 text-xs" data-testid="button-clear-filters">
+            Clear all filters
+          </Button>
+        )}
         <div className="ml-auto flex items-center gap-2">
           <ViewsPanel
             direction={direction}
@@ -544,11 +626,35 @@ export default function TicketTable({ direction }: { direction: "INBOUND" | "OUT
           <TableHeader className="bg-slate-50">
             <TableRow>
               {visibleColumns.map(key => (
-                <TableHead key={key} className="whitespace-nowrap">
-                  {ALL_COLUMNS.find(c => c.key === key)?.label || key}
+                <TableHead key={key} className="whitespace-nowrap p-0">
+                  <button
+                    type="button"
+                    onClick={() => handleSort(key)}
+                    className="flex items-center gap-0.5 w-full px-4 py-2 text-left hover:bg-slate-100 transition-colors select-none"
+                    data-testid={`button-sort-${key}`}
+                  >
+                    {ALL_COLUMNS.find(c => c.key === key)?.label || key}
+                    <SortIcon columnKey={key} />
+                  </button>
                 </TableHead>
               ))}
             </TableRow>
+            {showFilters && (
+              <TableRow className="bg-slate-50 border-t border-slate-200">
+                {visibleColumns.map(key => (
+                  <TableHead key={`filter-${key}`} className="px-1 py-1">
+                    <input
+                      type="text"
+                      placeholder="Filter..."
+                      value={columnFilters[key] || ""}
+                      onChange={e => handleColumnFilterChange(key, e.target.value)}
+                      className="w-full px-2 py-1 text-xs font-normal border rounded bg-white text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-400 min-w-[60px]"
+                      data-testid={`input-filter-${key}`}
+                    />
+                  </TableHead>
+                ))}
+              </TableRow>
+            )}
           </TableHeader>
           <TableBody>
             {isLoading ? (
