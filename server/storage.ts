@@ -220,7 +220,7 @@ export class DatabaseStorage implements IStorage {
     const pageSize = filters.pageSize || 25;
 
     const sortColumnMap: Record<string, any> = {
-      id: tickets.id, status: tickets.status, serviceOrder: tickets.serviceOrder,
+      id: tickets.legacyId, status: tickets.status, serviceOrder: tickets.serviceOrder,
       projectName: tickets.projectName, state: tickets.state, ownerName: tickets.ownerName,
       assignedToName: tickets.assignedToName, priority: tickets.priority, warehouse: tickets.warehouse,
       ownerEmail: tickets.ownerEmail, assignedToEmail: tickets.assignedToEmail,
@@ -242,7 +242,7 @@ export class DatabaseStorage implements IStorage {
       const col = sortColumnMap[filters.sortBy];
       orderClause = filters.sortOrder === "asc" ? asc(col) : desc(col);
     } else {
-      orderClause = desc(tickets.id);
+      orderClause = desc(tickets.legacyId);
     }
 
     const [{ total: totalCount }] = await db.select({ total: count() }).from(tickets).where(whereClause);
