@@ -564,16 +564,19 @@ export default function TicketDetail() {
 
           <Card className="shadow-sm">
             <CardHeader>
-              <CardTitle>Internal Comments</CardTitle>
+              <CardTitle>Subcontractor</CardTitle>
             </CardHeader>
             <CardContent>
-              <Textarea
-                value={form.internalComments}
-                onChange={e => setForm({ ...form, internalComments: e.target.value })}
-                rows={4}
-                disabled={!canEdit}
-                data-testid="input-internal-comments"
-              />
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label>Name</Label>
+                  <Input value={form.subcontractorName} onChange={e => setForm({ ...form, subcontractorName: e.target.value })} disabled={!canEdit} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Email</Label>
+                  <Input value={form.subcontractorEmail} onChange={e => setForm({ ...form, subcontractorEmail: e.target.value })} disabled={!canEdit} />
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -603,23 +606,7 @@ export default function TicketDetail() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle>Subcontractor</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Name</Label>
-                <Input value={form.subcontractorName} onChange={e => setForm({ ...form, subcontractorName: e.target.value })} disabled={!canEdit} />
-              </div>
-              <div className="space-y-2">
-                <Label>Email</Label>
-                <Input value={form.subcontractorEmail} onChange={e => setForm({ ...form, subcontractorEmail: e.target.value })} disabled={!canEdit} />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-sm flex flex-col" style={{ maxHeight: "500px" }}>
+          <Card className="shadow-sm flex flex-col" style={{ minHeight: "460px" }}>
             <CardHeader>
               <CardTitle>Chat / Activity</CardTitle>
             </CardHeader>
@@ -630,19 +617,24 @@ export default function TicketDetail() {
                 ) : messages.length === 0 ? (
                   <p className="text-sm text-slate-400 text-center py-4">No messages yet.</p>
                 ) : (
-                  messages.map((msg: any) => (
-                    <div key={msg.id} className="bg-slate-50 rounded-lg p-3 border border-slate-100" data-testid={`message-${msg.id}`}>
-                      <div className="flex justify-between items-baseline mb-1">
-                        <span className="font-semibold text-sm text-slate-900">
-                          {msg.senderFirstName} {msg.senderLastName}
-                        </span>
-                        <span className="text-xs text-slate-400">
-                          {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                        </span>
+                  messages.map((msg: any) => {
+                    const isLegacy = msg.messageText?.startsWith("[Legacy] ");
+                    const displayText = isLegacy ? msg.messageText.substring(9) : msg.messageText;
+                    return (
+                      <div key={msg.id} className={`rounded-lg p-3 border ${isLegacy ? "bg-amber-50/50 border-amber-100" : "bg-slate-50 border-slate-100"}`} data-testid={`message-${msg.id}`}>
+                        <div className="flex justify-between items-baseline mb-1">
+                          <span className="font-semibold text-sm text-slate-900">
+                            {msg.senderFirstName} {msg.senderLastName}
+                            {isLegacy && <span className="ml-2 text-xs font-normal text-amber-600">imported</span>}
+                          </span>
+                          <span className="text-xs text-slate-400">
+                            {new Date(msg.createdAt).toLocaleDateString()} {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        </div>
+                        <p className="text-sm text-slate-700 whitespace-pre-wrap">{displayText}</p>
                       </div>
-                      <p className="text-sm text-slate-700">{msg.messageText}</p>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
               {!isNew && !isReadOnly && (
