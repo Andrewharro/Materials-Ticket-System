@@ -16,6 +16,7 @@ interface ColumnDef {
 
 const ALL_COLUMNS: ColumnDef[] = [
   { key: "id", label: "Ticket ID" },
+  { key: "itemCount", label: "No. of Items" },
   { key: "status", label: "Status" },
   { key: "serviceOrder", label: "Service Order Ticket" },
   { key: "projectName", label: "Project" },
@@ -50,7 +51,7 @@ const ALL_COLUMNS: ColumnDef[] = [
   { key: "closedAt", label: "Closed" },
 ];
 
-const DEFAULT_VISIBLE = ["id", "status", "serviceOrder", "projectName", "state", "ownerName", "assignedToName"];
+const DEFAULT_VISIBLE = ["id", "itemCount", "status", "serviceOrder", "projectName", "state", "ownerName", "assignedToName"];
 
 interface SavedView {
   id: string;
@@ -84,6 +85,9 @@ function formatCellValue(key: string, ticket: any): React.ReactNode {
   }
   if (key === "status") {
     return <Badge variant="outline" className={statusColor(val)}>{val}</Badge>;
+  }
+  if (key === "itemCount") {
+    return val != null ? val : "—";
   }
   if (["createdAt", "updatedAt", "closedAt", "requestedDeliveryDate", "pickupDate"].includes(key)) {
     return val ? new Date(val).toLocaleDateString() : "—";

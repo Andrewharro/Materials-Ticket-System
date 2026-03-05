@@ -13,7 +13,7 @@ import {
   type InsertTicketStatus, type TicketStatus,
   type InsertAppRole, type AppRole,
 } from "@shared/schema";
-import { eq, and, or, ilike, sql, desc, asc, count } from "drizzle-orm";
+import { eq, and, or, ilike, sql, desc, asc, count, getTableColumns } from "drizzle-orm";
 
 export interface TicketFilters {
   direction?: "INBOUND" | "OUTBOUND";
@@ -246,7 +246,13 @@ export class DatabaseStorage implements IStorage {
     }
 
     const [{ total: totalCount }] = await db.select({ total: count() }).from(tickets).where(whereClause);
-    const rows = await db.select().from(tickets).where(whereClause).orderBy(orderClause).limit(pageSize).offset((page - 1) * pageSize);
+
+    const rows = await db
+      .select({
+        ...getTableColumns(tickets),
+        itemCount: sql<number>`(SELECT COUNT(*)::int FROM ticket_items WHERE ticket_items.ticket_id = ${tickets.id})`,
+      })
+      .from(tickets).where(whereClause).orderBy(orderClause).limit(pageSize).offset((page - 1) * pageSize);
 
     return { tickets: rows, total: Number(totalCount) };
   }
