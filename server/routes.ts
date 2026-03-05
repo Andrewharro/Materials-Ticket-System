@@ -59,6 +59,21 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/tickets/distinct-values", requireAuth, async (req, res) => {
+    try {
+      const direction = req.query.direction as string;
+      const column = req.query.column as string;
+      const search = (req.query.search as string) || "";
+      if (!direction || !column) {
+        return res.status(400).json({ message: "direction and column are required" });
+      }
+      const values = await storage.getDistinctColumnValues(direction, column, search, req.user?.role === "SUBCONTRACTOR" ? req.user.subcontractorId : undefined);
+      res.json(values);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   app.get("/api/tickets", requireAuth, async (req, res) => {
     try {
       const filters: any = {

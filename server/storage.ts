@@ -80,6 +80,7 @@ export interface IStorage {
   deleteAppRole(id: number): Promise<void>;
 
   saveTicketWithItems(ticketData: Partial<InsertTicket> & { id?: number }, itemsData: (InsertTicketItem & { id?: number })[]): Promise<{ ticket: Ticket; items: TicketItem[] }>;
+  getDistinctColumnValues(direction: string, column: string, search?: string, subcontractorId?: number): Promise<string[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -418,6 +419,68 @@ export class DatabaseStorage implements IStorage {
 
       return { ticket, items: savedItems };
     });
+  }
+  async getDistinctColumnValues(direction: string, column: string, search?: string, subcontractorId?: number): Promise<string[]> {
+    const colMap: Record<string, any> = {
+      status: tickets.status, serviceOrder: tickets.serviceOrder,
+      projectName: tickets.projectName, state: tickets.state, ownerName: tickets.ownerName,
+      assignedToName: tickets.assignedToName, priority: tickets.priority, warehouse: tickets.warehouse,
+      ownerEmail: tickets.ownerEmail, assignedToEmail: tickets.assignedToEmail,
+      deliveryOrPickup: tickets.deliveryOrPickup, deliveringTo: tickets.deliveringTo,
+      siteNameCoordinates: tickets.siteNameCoordinates, deliverySignoff: tickets.deliverySignoff,
+      steelWork: tickets.steelWork, subcontractorName: tickets.subcontractorName,
+      receiversName: tickets.receiversName, receiversPhone: tickets.receiversPhone,
+      pickupTime: tickets.pickupTime, deliveryTimeSlots: tickets.deliveryTimeSlots,
+      driverKey: tickets.driverKey, deliveryAddress: tickets.deliveryAddress,
+      accessConditions: tickets.accessConditions, liftingEquipment: tickets.liftingEquipment,
+      subcontractorEmail: tickets.subcontractorEmail, internalComments: tickets.internalComments,
+      goodsReceipt: tickets.goodsReceipt,
+    };
+    const dateColMap: Record<string, any> = {
+      requestedDeliveryDate: tickets.requestedDeliveryDate,
+      pickupDate: tickets.pickupDate,
+      createdAt: tickets.createdAt,
+      updatedAt: tickets.updatedAt,
+      closedAt: tickets.closedAt,
+    };
+    if (column === "id") {
+      const conditions: any[] = [eq(tickets.direction, direction as any)];
+      if (subcontractorId) conditions.push(eq(tickets.subcontractorId, subcontractorId));
+      if (search) conditions.push(sql`CAST(${tickets.id} AS TEXT) ILIKE ${'%' + search + '%'}`);
+      const rows = await db.selectDistinct({ value: sql<string>`CAST(${tickets.id} AS TEXT)` })
+        .from(tickets).where(and(...conditions)).orderBy(asc(tickets.id)).limit(100);
+      return rows.map(r => r.value).filter((v): v is string => v != null && v !== "");
+    }
+
+    const dateCol = dateColMap[column];
+    if (dateCol) {
+      const conditions: any[] = [eq(tickets.direction, direction as any)];
+      if (subcontractorId) conditions.push(eq(tickets.subcontractorId, subcontractorId));
+      if (search) conditions.push(sql`TO_CHAR(${dateCol}, 'YYYY-MM-DD') ILIKE ${'%' + search + '%'}`);
+      const rows = await db.selectDistinct({ value: sql<string>`TO_CHAR(${dateCol}, 'YYYY-MM-DD')` })
+        .from(tickets).where(and(...conditions)).orderBy(asc(dateCol)).limit(100);
+      return rows.map(r => r.value).filter((v): v is string => v != null && v !== "");
+    }
+
+    const col = colMap[column];
+    if (!col) return [];
+
+    const conditions: any[] = [eq(tickets.direction, direction as any)];
+    if (subcontractorId) {
+      conditions.push(eq(tickets.subcontractorId, subcontractorId));
+    }
+    if (search) {
+      conditions.push(ilike(col, `%${search}%`));
+    }
+
+    const rows = await db
+      .selectDistinct({ value: col })
+      .from(tickets)
+      .where(and(...conditions))
+      .orderBy(asc(col))
+      .limit(100);
+
+    return rows.map(r => r.value).filter((v): v is string => v != null && v !== "");
   }
 }
 

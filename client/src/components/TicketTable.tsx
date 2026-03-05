@@ -2,11 +2,10 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Columns3, GripVertical, Eye, EyeOff, LayoutGrid, Save, Pencil, Trash2, Check, X, ArrowUp, ArrowDown, ArrowUpDown, Filter } from "lucide-react";
+import { ChevronLeft, ChevronRight, Columns3, GripVertical, Eye, EyeOff, LayoutGrid, Save, Pencil, Trash2, Check, X, ArrowUp, ArrowDown, ChevronDown, Search } from "lucide-react";
 import { apiGet } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
@@ -141,6 +140,158 @@ function useDebounce<T>(value: T, delay: number): T {
     return () => clearTimeout(t);
   }, [value, delay]);
   return debounced;
+}
+
+function ColumnHeaderDropdown({ columnKey, direction, sortBy, sortOrder, filterValue, onSort, onFilter }: {
+  columnKey: string;
+  direction: string;
+  sortBy: string | null;
+  sortOrder: "asc" | "desc";
+  filterValue: string;
+  onSort: (key: string, order: "asc" | "desc" | null) => void;
+  onFilter: (key: string, value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [searchText, setSearchText] = useState("");
+  const [distinctValues, setDistinctValues] = useState<string[]>([]);
+  const [loadingValues, setLoadingValues] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const label = ALL_COLUMNS.find(c => c.key === columnKey)?.label || columnKey;
+  const isSorted = sortBy === columnKey;
+  const isFiltered = !!filterValue;
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (open) {
+      setSearchText("");
+      setLoadingValues(true);
+      apiGet<string[]>(`/api/tickets/distinct-values?direction=${direction}&column=${columnKey}`)
+        .then(vals => setDistinctValues(vals))
+        .catch(() => setDistinctValues([]))
+        .finally(() => setLoadingValues(false));
+    }
+  }, [open, direction, columnKey]);
+
+  const filteredDistinct = searchText
+    ? distinctValues.filter(v => v.toLowerCase().includes(searchText.toLowerCase()))
+    : distinctValues;
+
+  return (
+    <div ref={panelRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className={cn(
+          "flex items-center gap-1 w-full px-3 py-2 text-left text-xs font-medium uppercase tracking-wider select-none hover:bg-slate-100 transition-colors",
+          (isSorted || isFiltered) && "text-blue-700"
+        )}
+        data-testid={`button-colmenu-${columnKey}`}
+      >
+        <span className="truncate">{label}</span>
+        <span className="flex items-center gap-0 ml-auto flex-shrink-0">
+          {isSorted && (
+            sortOrder === "asc"
+              ? <ArrowUp className="w-3 h-3 text-blue-600" />
+              : <ArrowDown className="w-3 h-3 text-blue-600" />
+          )}
+          {isFiltered && (
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-600 ml-0.5" />
+          )}
+          <ChevronDown className="w-3 h-3 text-slate-400 ml-0.5" />
+        </span>
+      </button>
+      {open && (
+        <div className="absolute left-0 z-50 mt-0 w-56 rounded-md border bg-white shadow-lg flex flex-col" style={{ maxHeight: "340px" }}>
+          <div className="border-b">
+            <button
+              type="button"
+              onClick={() => { onSort(columnKey, "asc"); setOpen(false); }}
+              className={cn("flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-slate-50", isSorted && sortOrder === "asc" && "bg-blue-50 text-blue-700")}
+              data-testid={`button-sort-asc-${columnKey}`}
+            >
+              <ArrowUp className="w-3.5 h-3.5" /> Sort Ascending
+            </button>
+            <button
+              type="button"
+              onClick={() => { onSort(columnKey, "desc"); setOpen(false); }}
+              className={cn("flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-slate-50", isSorted && sortOrder === "desc" && "bg-blue-50 text-blue-700")}
+              data-testid={`button-sort-desc-${columnKey}`}
+            >
+              <ArrowDown className="w-3.5 h-3.5" /> Sort Descending
+            </button>
+            {isSorted && (
+              <button
+                type="button"
+                onClick={() => { onSort(columnKey, null); setOpen(false); }}
+                className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-500 hover:bg-slate-50"
+                data-testid={`button-sort-clear-${columnKey}`}
+              >
+                <X className="w-3.5 h-3.5" /> Clear Sort
+              </button>
+            )}
+          </div>
+
+          <div className="px-2 py-2 border-b">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search values..."
+                value={searchText}
+                onChange={e => setSearchText(e.target.value)}
+                className="w-full pl-7 pr-2 py-1.5 text-sm border rounded bg-white text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                autoFocus
+                data-testid={`input-filter-search-${columnKey}`}
+              />
+            </div>
+          </div>
+
+          <div className="overflow-y-auto flex-1" style={{ maxHeight: "180px" }}>
+            {isFiltered && (
+              <button
+                type="button"
+                onClick={() => { onFilter(columnKey, ""); setOpen(false); }}
+                className="flex items-center gap-2 w-full px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 border-b"
+                data-testid={`button-clear-filter-${columnKey}`}
+              >
+                <X className="w-3.5 h-3.5" /> Clear Filter
+              </button>
+            )}
+            {loadingValues ? (
+              <div className="px-3 py-3 text-xs text-slate-400 text-center">Loading...</div>
+            ) : filteredDistinct.length === 0 ? (
+              <div className="px-3 py-3 text-xs text-slate-400 text-center">No values found</div>
+            ) : (
+              filteredDistinct.map(val => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => { onFilter(columnKey, val); setOpen(false); }}
+                  className={cn(
+                    "flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-slate-50 text-left truncate",
+                    filterValue === val && "bg-blue-50 text-blue-700 font-medium"
+                  )}
+                  data-testid={`button-filter-val-${columnKey}-${val}`}
+                >
+                  {filterValue === val && <Check className="w-3 h-3 flex-shrink-0" />}
+                  <span className="truncate">{val}</span>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function ViewsPanel({ direction, currentColumns, currentSortBy, currentSortOrder, currentColumnFilters, currentStatusFilter, onApplyView }: {
@@ -521,32 +672,36 @@ export default function TicketTable({ direction }: { direction: "INBOUND" | "OUT
   const [sortBy, setSortBy] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
-  const [showFilters, setShowFilters] = useState(false);
 
   const debouncedColumnFilters = useDebounce(columnFilters, 400);
   const activeFilterCount = Object.values(columnFilters).filter(v => v.length > 0).length;
 
-  const handleSort = useCallback((key: string) => {
-    if (sortBy === key) {
-      if (sortOrder === "asc") {
-        setSortOrder("desc");
-      } else {
-        setSortBy(null);
-      }
+  const handleSort = useCallback((key: string, order: "asc" | "desc" | null) => {
+    if (order === null) {
+      setSortBy(null);
     } else {
       setSortBy(key);
-      setSortOrder("asc");
+      setSortOrder(order);
     }
     setPage(1);
-  }, [sortBy, sortOrder]);
+  }, []);
 
-  const handleColumnFilterChange = useCallback((key: string, value: string) => {
-    setColumnFilters(prev => ({ ...prev, [key]: value }));
+  const handleColumnFilter = useCallback((key: string, value: string) => {
+    setColumnFilters(prev => {
+      const next = { ...prev };
+      if (value) {
+        next[key] = value;
+      } else {
+        delete next[key];
+      }
+      return next;
+    });
     setPage(1);
   }, []);
 
   const clearAllFilters = useCallback(() => {
     setColumnFilters({});
+    setSortBy(null);
     setStatusFilter("All");
     setSearchTerm("");
     setPage(1);
@@ -559,9 +714,6 @@ export default function TicketTable({ direction }: { direction: "INBOUND" | "OUT
     setSortOrder(view.sortOrder);
     setColumnFilters(view.columnFilters);
     setStatusFilter(view.statusFilter);
-    if (Object.values(view.columnFilters).some(v => v.length > 0)) {
-      setShowFilters(true);
-    }
     setPage(1);
   };
 
@@ -593,15 +745,6 @@ export default function TicketTable({ direction }: { direction: "INBOUND" | "OUT
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const colCount = visibleColumns.length;
 
-  const SortIcon = ({ columnKey }: { columnKey: string }) => {
-    if (sortBy !== columnKey) {
-      return <ArrowUpDown className="w-3 h-3 text-slate-300 ml-1 inline-block" />;
-    }
-    return sortOrder === "asc"
-      ? <ArrowUp className="w-3 h-3 text-blue-600 ml-1 inline-block" />
-      : <ArrowDown className="w-3 h-3 text-blue-600 ml-1 inline-block" />;
-  };
-
   return (
     <div className="space-y-4">
       <div className="flex gap-4 mb-6 items-center flex-wrap">
@@ -612,37 +755,9 @@ export default function TicketTable({ direction }: { direction: "INBOUND" | "OUT
           className="max-w-sm bg-white"
           data-testid="input-search"
         />
-        <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-          <SelectTrigger className="w-[180px] bg-white" data-testid="select-status">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="All">All Statuses</SelectItem>
-            <SelectItem value="New">New</SelectItem>
-            <SelectItem value="Open">Open</SelectItem>
-            <SelectItem value="On Hold">On Hold</SelectItem>
-            <SelectItem value="Closed">Closed</SelectItem>
-            <SelectItem value="Not Assigned">Not Assigned</SelectItem>
-          </SelectContent>
-        </Select>
-        <Button
-          variant={showFilters ? "default" : "outline"}
-          size="sm"
-          onClick={() => setShowFilters(!showFilters)}
-          data-testid="button-toggle-filters"
-          className={cn(activeFilterCount > 0 && !showFilters && "border-blue-400 text-blue-700 bg-blue-50")}
-        >
-          <Filter className="w-4 h-4 mr-1" />
-          Filters
-          {activeFilterCount > 0 && (
-            <span className="ml-1 bg-blue-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-              {activeFilterCount}
-            </span>
-          )}
-        </Button>
-        {activeFilterCount > 0 && (
+        {(activeFilterCount > 0 || sortBy) && (
           <Button variant="ghost" size="sm" onClick={clearAllFilters} className="text-slate-500 text-xs" data-testid="button-clear-filters">
-            Clear all filters
+            <X className="w-3 h-3 mr-1" /> Clear all sorts/filters
           </Button>
         )}
         <div className="ml-auto flex items-center gap-2">
@@ -672,34 +787,18 @@ export default function TicketTable({ direction }: { direction: "INBOUND" | "OUT
             <TableRow>
               {visibleColumns.map(key => (
                 <TableHead key={key} className="whitespace-nowrap p-0">
-                  <button
-                    type="button"
-                    onClick={() => handleSort(key)}
-                    className="flex items-center gap-0.5 w-full px-4 py-2 text-left hover:bg-slate-100 transition-colors select-none"
-                    data-testid={`button-sort-${key}`}
-                  >
-                    {ALL_COLUMNS.find(c => c.key === key)?.label || key}
-                    <SortIcon columnKey={key} />
-                  </button>
+                  <ColumnHeaderDropdown
+                    columnKey={key}
+                    direction={direction}
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    filterValue={columnFilters[key] || ""}
+                    onSort={handleSort}
+                    onFilter={handleColumnFilter}
+                  />
                 </TableHead>
               ))}
             </TableRow>
-            {showFilters && (
-              <TableRow className="bg-slate-50 border-t border-slate-200">
-                {visibleColumns.map(key => (
-                  <TableHead key={`filter-${key}`} className="px-1 py-1">
-                    <input
-                      type="text"
-                      placeholder="Filter..."
-                      value={columnFilters[key] || ""}
-                      onChange={e => handleColumnFilterChange(key, e.target.value)}
-                      className="w-full px-2 py-1 text-xs font-normal border rounded bg-white text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-400 min-w-[60px]"
-                      data-testid={`input-filter-${key}`}
-                    />
-                  </TableHead>
-                ))}
-              </TableRow>
-            )}
           </TableHeader>
           <TableBody>
             {isLoading ? (
