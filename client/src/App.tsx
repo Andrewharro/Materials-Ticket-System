@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
+import { getToken } from "@/lib/auth";
 
 import Layout from "./components/Layout";
 import Login from "./pages/Login";
@@ -14,24 +15,46 @@ import TicketDetail from "./pages/TicketDetail";
 import SettingsUsers from "./pages/SettingsUsers";
 import SettingsReferenceData from "./pages/SettingsReferenceData";
 
+function ProtectedRoute({ component: Component }: { component: React.ComponentType<any> }) {
+  if (!getToken()) {
+    return <Redirect to="/login" />;
+  }
+  return (
+    <Layout>
+      <Component />
+    </Layout>
+  );
+}
+
 function Router() {
   return (
     <Switch>
       <Route path="/login" component={Login} />
       <Route path="/">
-        <Redirect to="/dashboard" />
+        {() => getToken() ? <Redirect to="/dashboard" /> : <Redirect to="/login" />}
       </Route>
-      <Layout>
-        <Switch>
-          <Route path="/dashboard" component={Dashboard} />
-          <Route path="/inbound" component={InboundTickets} />
-          <Route path="/outbound" component={OutboundTickets} />
-          <Route path="/tickets/:id" component={TicketDetail} />
-          <Route path="/settings/users" component={SettingsUsers} />
-          <Route path="/settings/reference" component={SettingsReferenceData} />
-          <Route component={NotFound} />
-        </Switch>
-      </Layout>
+      <Route path="/dashboard">
+        <ProtectedRoute component={Dashboard} />
+      </Route>
+      <Route path="/inbound">
+        <ProtectedRoute component={InboundTickets} />
+      </Route>
+      <Route path="/outbound">
+        <ProtectedRoute component={OutboundTickets} />
+      </Route>
+      <Route path="/tickets/new">
+        <ProtectedRoute component={TicketDetail} />
+      </Route>
+      <Route path="/tickets/:id">
+        <ProtectedRoute component={TicketDetail} />
+      </Route>
+      <Route path="/settings/users">
+        <ProtectedRoute component={SettingsUsers} />
+      </Route>
+      <Route path="/settings/reference">
+        <ProtectedRoute component={SettingsReferenceData} />
+      </Route>
+      <Route component={NotFound} />
     </Switch>
   );
 }

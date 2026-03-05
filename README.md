@@ -1,28 +1,80 @@
-# Materials Ticketing System (Frontend Prototype)
+# Materials OS — Ticketing System
 
-This project is a rapid frontend prototype of the Materials Ticketing System, designed to replace a legacy Power Apps + SharePoint solution. It demonstrates the UI, user flows, and general structure of the application.
+A production-ready full-stack web application for managing inbound and outbound material tickets. Replaces a Microsoft Power Apps + SharePoint ticketing solution.
 
-## Current State
+## Features
 
-Currently, this application is operating in **Mockup Mode**. 
-- It uses in-memory mock data to drive the user interface.
-- Navigation, layouts, routing, and styling are fully functional.
-- The backend (`/server`, PostgreSQL, Prisma, authentication) has not yet been generated.
+- **Ticketing**: Create, view, edit, and manage inbound/outbound material tickets
+- **Line Items**: Editable item grid per ticket, saved transactionally with ticket data
+- **Chat/Messaging**: In-ticket messaging with email notifications
+- **RBAC**: Role-based access control (USER, COORDINATOR, ADMIN)
+- **Search & Filter**: Server-side filtering, search, pagination across ticket queues
+- **Admin Settings**: Manage users, roles, ticket statuses, departments, techs, subcontractors
+- **Email Notifications**: Nodemailer with SMTP, logged to database
 
-## Features Built
+## Tech Stack
 
-- **Authentication UI**: A clean login screen (bypasses real auth for prototyping).
-- **Navigation**: Sidebar with routes for Dashboard, Inbound, Outbound, and Settings.
-- **Dashboard**: High-level metrics and recent ticket activity.
-- **Ticketing Queues**: Server-side styled filtering, searching, and status badge indicators.
-- **Ticket Detail**: Complex form with editable fields, line item grid, assignment, and an integrated chat/activity feed.
-- **Settings (Admin)**: User & Role management, and Reference Data tabs.
+- **Frontend**: React, TypeScript, Vite, Tailwind CSS, shadcn/ui, wouter, TanStack Query
+- **Backend**: Node.js, Express, TypeScript, Drizzle ORM
+- **Database**: PostgreSQL
+- **Auth**: JWT (Bearer token)
 
-## Next Steps / Full-Stack Graduation
+## Environment Variables
 
-To make this a production-ready application with a real database and backend API:
-1. **Database Setup**: We need to configure a PostgreSQL database and create the Prisma schema (`prisma/schema.prisma`) as defined in your requirements.
-2. **Backend Services**: Implement the Express/Node.js backend in the `/server` directory to handle API routes, authentication, and database operations.
-3. **Integration**: Replace the mock data in the frontend with React Query calls to the new backend API endpoints.
+| Variable | Description | Required |
+|---|---|---|
+| `DATABASE_URL` | PostgreSQL connection string | Yes (auto-set on Replit) |
+| `JWT_SECRET` | Secret key for JWT signing | Recommended |
+| `SMTP_HOST` | SMTP server hostname | No (emails logged if not set) |
+| `SMTP_PORT` | SMTP port (default 587) | No |
+| `SMTP_SECURE` | Use TLS (true/false) | No |
+| `SMTP_USER` | SMTP username | No |
+| `SMTP_PASS` | SMTP password | No |
+| `SMTP_FROM` | Sender email address | No |
+| `COORDINATOR_GROUP_EMAIL` | Fallback email for unassigned tickets | No |
 
-If you are ready to convert this prototype into a fully functional application, please let me know and we can upgrade this project to a full-stack environment!
+## Setup
+
+```bash
+# Install dependencies
+npm install
+
+# Push database schema
+npm run db:push
+
+# Start development server (seeds admin user + statuses automatically)
+npm run dev
+```
+
+## Default Admin Login
+
+- **Email**: admin@example.com
+- **Password**: ChangeMe123!
+
+## Production Build
+
+```bash
+npm run build
+npm run start
+```
+
+## API Endpoints
+
+### Auth
+- `POST /api/auth/login` — Login with email/password, returns JWT
+- `POST /api/auth/logout` — Logout
+- `GET /api/auth/me` — Get current user
+
+### Tickets
+- `GET /api/tickets` — List tickets (query: direction, status, search, page, pageSize)
+- `GET /api/tickets/:id` — Get ticket with items and messages
+- `POST /api/tickets` — Create new ticket
+- `POST /api/tickets/:id/save` — Upsert ticket + items in one transaction
+- `POST /api/tickets/:id/messages` — Post message + trigger email notification
+
+### Admin (ADMIN role only)
+- `GET/POST/PATCH /api/admin/users` — User management
+- `GET/POST/PATCH/DELETE /api/admin/statuses` — Ticket status management
+- `GET/POST/PATCH/DELETE /api/admin/departments` — Department management
+- `GET/POST/PATCH/DELETE /api/admin/department-techs` — Department tech management
+- `GET/POST/PATCH/DELETE /api/admin/subcontractors` — Subcontractor management

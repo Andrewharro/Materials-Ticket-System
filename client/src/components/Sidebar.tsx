@@ -1,9 +1,11 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Inbox, Send, Settings, Users, Database, LogOut } from "lucide-react";
+import { LayoutDashboard, Inbox, Send, Users, Database, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { clearAuth, getStoredUser } from "@/lib/auth";
 
 export default function Sidebar() {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
+  const user = getStoredUser();
 
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -11,13 +13,22 @@ export default function Sidebar() {
     { href: "/outbound", label: "Outbound Tickets", icon: Send },
   ];
 
+  const isAdmin = user?.role === "ADMIN";
+
   const settingItems = [
     { href: "/settings/users", label: "Users & Roles", icon: Users },
     { href: "/settings/reference", label: "Reference Data", icon: Database },
   ];
 
+  const handleLogout = () => {
+    clearAuth();
+    setLocation("/login");
+  };
+
+  const initials = user ? `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}` : "??";
+
   return (
-    <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col h-screen border-r border-slate-800">
+    <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col h-screen border-r border-slate-800" data-testid="sidebar">
       <div className="p-6">
         <h1 className="text-xl font-bold text-white tracking-tight">Materials OS</h1>
       </div>
@@ -26,7 +37,7 @@ export default function Sidebar() {
           const active = location === item.href;
           return (
             <Link key={item.href} href={item.href}>
-              <div className={cn(
+              <div data-testid={`nav-${item.href.replace("/", "")}`} className={cn(
                 "flex items-center space-x-3 px-3 py-2 rounded-md transition-colors text-sm font-medium cursor-pointer",
                 active ? "bg-blue-600 text-white" : "hover:bg-slate-800 hover:text-white"
               )}>
@@ -37,40 +48,46 @@ export default function Sidebar() {
           );
         })}
 
-        <div className="mt-8 mb-2 px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-          Settings
-        </div>
-        {settingItems.map((item) => {
-          const active = location === item.href;
-          return (
-            <Link key={item.href} href={item.href}>
-              <div className={cn(
-                "flex items-center space-x-3 px-3 py-2 rounded-md transition-colors text-sm font-medium cursor-pointer",
-                active ? "bg-blue-600 text-white" : "hover:bg-slate-800 hover:text-white"
-              )}>
-                <item.icon className="w-4 h-4" />
-                <span>{item.label}</span>
-              </div>
-            </Link>
-          );
-        })}
+        {isAdmin && (
+          <>
+            <div className="mt-8 mb-2 px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              Settings
+            </div>
+            {settingItems.map((item) => {
+              const active = location === item.href;
+              return (
+                <Link key={item.href} href={item.href}>
+                  <div data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, "-")}`} className={cn(
+                    "flex items-center space-x-3 px-3 py-2 rounded-md transition-colors text-sm font-medium cursor-pointer",
+                    active ? "bg-blue-600 text-white" : "hover:bg-slate-800 hover:text-white"
+                  )}>
+                    <item.icon className="w-4 h-4" />
+                    <span>{item.label}</span>
+                  </div>
+                </Link>
+              );
+            })}
+          </>
+        )}
       </nav>
       <div className="p-4 border-t border-slate-800">
         <div className="flex items-center space-x-3 px-3 py-2 mb-2">
-          <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-white font-medium">
-            AU
+          <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-white font-medium text-xs">
+            {initials}
           </div>
           <div className="flex-1 overflow-hidden">
-            <p className="text-sm font-medium text-white truncate">Admin User</p>
-            <p className="text-xs text-slate-500 truncate">admin@example.com</p>
+            <p className="text-sm font-medium text-white truncate">{user?.firstName} {user?.lastName}</p>
+            <p className="text-xs text-slate-500 truncate">{user?.email}</p>
           </div>
         </div>
-        <Link href="/login">
-          <div className="flex items-center space-x-3 px-3 py-2 rounded-md hover:bg-slate-800 transition-colors text-sm font-medium text-slate-400 hover:text-white cursor-pointer">
-            <LogOut className="w-4 h-4" />
-            <span>Sign out</span>
-          </div>
-        </Link>
+        <button
+          onClick={handleLogout}
+          data-testid="button-logout"
+          className="flex items-center space-x-3 px-3 py-2 rounded-md hover:bg-slate-800 transition-colors text-sm font-medium text-slate-400 hover:text-white cursor-pointer w-full"
+        >
+          <LogOut className="w-4 h-4" />
+          <span>Sign out</span>
+        </button>
       </div>
     </aside>
   );
