@@ -9,10 +9,12 @@ import {
   XAxis, YAxis, CartesianGrid, Line, ComposedChart, Bar,
 } from "recharts";
 
-type FilterKey = "inbound" | "outbound" | "new" | "open" | "onhold" | "closed" | null;
+type DirectionFilter = "inbound" | "outbound" | null;
+type StatusFilter = "new" | "open" | "onhold" | "closed" | null;
 
 export default function Dashboard() {
-  const [activeFilter, setActiveFilter] = useState<FilterKey>(null);
+  const [directionFilter, setDirectionFilter] = useState<DirectionFilter>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(null);
 
   const { data: inboundData } = useQuery({
     queryKey: ["tickets-inbound-stats"],
@@ -45,15 +47,15 @@ export default function Dashboard() {
   });
 
   const chartParams = new URLSearchParams();
-  if (activeFilter === "inbound") chartParams.set("direction", "INBOUND");
-  if (activeFilter === "outbound") chartParams.set("direction", "OUTBOUND");
-  if (activeFilter === "new") chartParams.set("status", "New");
-  if (activeFilter === "open") chartParams.set("status", "Open");
-  if (activeFilter === "onhold") chartParams.set("status", "On Hold");
-  if (activeFilter === "closed") chartParams.set("status", "Closed");
+  if (directionFilter === "inbound") chartParams.set("direction", "INBOUND");
+  if (directionFilter === "outbound") chartParams.set("direction", "OUTBOUND");
+  if (statusFilter === "new") chartParams.set("status", "New");
+  if (statusFilter === "open") chartParams.set("status", "Open");
+  if (statusFilter === "onhold") chartParams.set("status", "On Hold");
+  if (statusFilter === "closed") chartParams.set("status", "Closed");
 
   const { data: chartData } = useQuery({
-    queryKey: ["dashboard-charts", activeFilter],
+    queryKey: ["dashboard-charts", directionFilter, statusFilter],
     queryFn: () => apiGet<{ byProject: { name: string; count: number; items: number }[]; byMonth: { month: string; count: number; items: number }[] }>(
       `/api/dashboard/stats?${chartParams.toString()}`
     ),
@@ -66,17 +68,24 @@ export default function Dashboard() {
   const onholdCount = onholdData?.total ?? 0;
   const closedCount = closedData?.total ?? 0;
 
-  const stats: { key: FilterKey; label: string; value: number; icon: any; color: string; ring: string }[] = [
+  const directionStats: { key: DirectionFilter; label: string; value: number; icon: any; color: string; ring: string }[] = [
     { key: "inbound", label: "Inbound", value: inboundCount, icon: Inbox, color: "text-blue-600", ring: "ring-blue-400" },
     { key: "outbound", label: "Outbound", value: outboundCount, icon: Send, color: "text-purple-600", ring: "ring-purple-400" },
+  ];
+
+  const statusStats: { key: StatusFilter; label: string; value: number; icon: any; color: string; ring: string }[] = [
     { key: "new", label: "New", value: newCount, icon: Clock, color: "text-sky-600", ring: "ring-sky-400" },
     { key: "open", label: "Open", value: openCount, icon: CheckCircle, color: "text-amber-600", ring: "ring-amber-400" },
     { key: "onhold", label: "On Hold", value: onholdCount, icon: Clock, color: "text-orange-600", ring: "ring-orange-400" },
     { key: "closed", label: "Closed", value: closedCount, icon: CheckCircle, color: "text-green-600", ring: "ring-green-400" },
   ];
 
-  const toggleFilter = (key: FilterKey) => {
-    setActiveFilter(prev => prev === key ? null : key);
+  const toggleDirection = (key: DirectionFilter) => {
+    setDirectionFilter(prev => prev === key ? null : key);
+  };
+
+  const toggleStatus = (key: StatusFilter) => {
+    setStatusFilter(prev => prev === key ? null : key);
   };
 
   const projectData = chartData?.byProject ?? [];
@@ -85,9 +94,10 @@ export default function Dashboard() {
     label: formatMonth(m.month),
   }));
 
-  const filterLabel = activeFilter
-    ? stats.find(s => s.key === activeFilter)?.label
-    : null;
+  const hasFilter = directionFilter || statusFilter;
+  const filterLabels: string[] = [];
+  if (directionFilter) filterLabels.push(directionStats.find(s => s.key === directionFilter)!.label);
+  if (statusFilter) filterLabels.push(statusStats.find(s => s.key === statusFilter)!.label);
 
   const maxTickets = projectData.length > 0 ? projectData[0].count : 1;
 
@@ -96,12 +106,34 @@ export default function Dashboard() {
       <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-8" data-testid="text-dashboard-title">Dashboard</h1>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
-        {stats.map((stat) => {
-          const isActive = activeFilter === stat.key;
+        {directionStats.map((stat) => {
+          const isActive = directionFilter === stat.key;
           return (
             <Card
               key={stat.key}
-              onClick={() => toggleFilter(stat.key)}
+              onClick={() => toggleDirection(stat.key)}
+              data-testid={`card-stat-${stat.key}`}
+              className={cn(
+                "shadow-sm border-slate-200 cursor-pointer transition-all hover:shadow-md",
+                isActive && `ring-2 ${stat.ring} shadow-md`
+              )}
+            >
+              <CardContent className="p-5 flex flex-col items-center text-center">
+                <div className={cn("p-2.5 rounded-full bg-slate-100 mb-3", stat.color)}>
+                  <stat.icon className="w-5 h-5" />
+                </div>
+                <h3 className="text-2xl font-bold text-slate-900" data-testid={`text-stat-${stat.key}`}>{stat.value}</h3>
+                <p className="text-xs font-medium text-slate-500 mt-1">{stat.label}</p>
+              </CardContent>
+            </Card>
+          );
+        })}
+        {statusStats.map((stat) => {
+          const isActive = statusFilter === stat.key;
+          return (
+            <Card
+              key={stat.key}
+              onClick={() => toggleStatus(stat.key)}
               data-testid={`card-stat-${stat.key}`}
               className={cn(
                 "shadow-sm border-slate-200 cursor-pointer transition-all hover:shadow-md",
@@ -120,17 +152,17 @@ export default function Dashboard() {
         })}
       </div>
 
-      {activeFilter && (
+      {hasFilter && (
         <div className="mb-4 flex items-center gap-2">
           <span className="text-sm text-slate-600">
-            Filtered by: <span className="font-semibold">{filterLabel}</span>
+            Filtered by: <span className="font-semibold">{filterLabels.join(" + ")}</span>
           </span>
           <button
-            onClick={() => setActiveFilter(null)}
+            onClick={() => { setDirectionFilter(null); setStatusFilter(null); }}
             className="text-sm text-slate-500 hover:text-slate-800 flex items-center gap-1 transition-colors"
             data-testid="button-clear-filter"
           >
-            <X className="w-4 h-4" /> Clear
+            <X className="w-4 h-4" /> Clear all
           </button>
         </div>
       )}
