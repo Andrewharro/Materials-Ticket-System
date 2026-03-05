@@ -372,6 +372,23 @@ export async function registerRoutes(
     try { await storage.deleteDepartmentTech(parseInt(req.params.id)); res.json({ message: "Deleted" }); } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
+  app.get("/api/admin/warehouses", requireAuth, async (_req, res) => {
+    try { res.json(await storage.listWarehouses()); } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+  app.post("/api/admin/warehouses", requireAuth, requireRole("ADMIN"), async (req, res) => {
+    try { res.status(201).json(await storage.createWarehouse(req.body)); } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+  app.patch("/api/admin/warehouses/:id", requireAuth, requireRole("ADMIN"), async (req, res) => {
+    try {
+      const updated = await storage.updateWarehouse(parseInt(req.params.id), req.body);
+      if (!updated) return res.status(404).json({ message: "Not found" });
+      res.json(updated);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+  app.delete("/api/admin/warehouses/:id", requireAuth, requireRole("ADMIN"), async (req, res) => {
+    try { await storage.deleteWarehouse(parseInt(req.params.id)); res.json({ message: "Deleted" }); } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
   app.get("/api/admin/subcontractors", requireAuth, async (_req, res) => {
     try { res.json(await storage.listSubcontractors()); } catch (err: any) { res.status(500).json({ message: err.message }); }
   });

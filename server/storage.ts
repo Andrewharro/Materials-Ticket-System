@@ -2,7 +2,7 @@ import { db } from "./db";
 import {
   users, tickets, ticketItems, ticketMessages,
   subcontractors, departments, departmentTechs, ticketStatuses,
-  appSettings, emailLogs, appRoles,
+  appSettings, emailLogs, appRoles, warehouses,
   type InsertUser, type User,
   type InsertTicket, type Ticket,
   type InsertTicketItem, type TicketItem,
@@ -12,6 +12,7 @@ import {
   type InsertDepartmentTech, type DepartmentTech,
   type InsertTicketStatus, type TicketStatus,
   type InsertAppRole, type AppRole,
+  type InsertWarehouse, type Warehouse,
 } from "@shared/schema";
 import { eq, and, or, ilike, sql, desc, asc, count, getTableColumns } from "drizzle-orm";
 
@@ -52,6 +53,11 @@ export interface IStorage {
 
   createMessage(msg: InsertTicketMessage): Promise<TicketMessage>;
   getTicketMessages(ticketId: number): Promise<any[]>;
+
+  listWarehouses(): Promise<Warehouse[]>;
+  createWarehouse(w: InsertWarehouse): Promise<Warehouse>;
+  updateWarehouse(id: number, data: Partial<InsertWarehouse>): Promise<Warehouse | undefined>;
+  deleteWarehouse(id: number): Promise<void>;
 
   listSubcontractors(): Promise<Subcontractor[]>;
   getSubcontractor(id: number): Promise<Subcontractor | undefined>;
@@ -335,6 +341,24 @@ export class DatabaseStorage implements IStorage {
       .where(eq(ticketMessages.ticketId, ticketId))
       .orderBy(asc(ticketMessages.createdAt));
     return rows;
+  }
+
+  async listWarehouses(): Promise<Warehouse[]> {
+    return db.select().from(warehouses).orderBy(asc(warehouses.name));
+  }
+
+  async createWarehouse(w: InsertWarehouse): Promise<Warehouse> {
+    const [created] = await db.insert(warehouses).values(w).returning();
+    return created;
+  }
+
+  async updateWarehouse(id: number, data: Partial<InsertWarehouse>): Promise<Warehouse | undefined> {
+    const [updated] = await db.update(warehouses).set({ ...data, updatedAt: new Date() }).where(eq(warehouses.id, id)).returning();
+    return updated;
+  }
+
+  async deleteWarehouse(id: number): Promise<void> {
+    await db.delete(warehouses).where(eq(warehouses.id, id));
   }
 
   async listSubcontractors(): Promise<Subcontractor[]> {

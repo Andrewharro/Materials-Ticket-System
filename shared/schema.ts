@@ -293,6 +293,21 @@ export const appRoles = pgTable("app_roles", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+export const warehouses = pgTable("warehouses", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull().unique(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertWarehouseSchema = createInsertSchema(warehouses).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertWarehouse = z.infer<typeof insertWarehouseSchema>;
+export type Warehouse = typeof warehouses.$inferSelect;
+
 export const insertAppRoleSchema = createInsertSchema(appRoles).omit({
   id: true,
   createdAt: true,

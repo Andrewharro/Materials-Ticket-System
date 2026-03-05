@@ -9,7 +9,7 @@ import { Trash2, Plus } from "lucide-react";
 import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 
-type TabId = "statuses" | "departments" | "department-techs" | "subcontractors";
+type TabId = "statuses" | "departments" | "department-techs" | "subcontractors" | "warehouses";
 
 const tabConfig: { id: TabId; label: string; endpoint: string; nameField: string; fields: { key: string; label: string; type?: string }[] }[] = [
   {
@@ -42,6 +42,12 @@ const tabConfig: { id: TabId; label: string; endpoint: string; nameField: string
       { key: "email", label: "Email" },
       { key: "address", label: "Address" },
       { key: "project", label: "Project" },
+    ],
+  },
+  {
+    id: "warehouses", label: "Warehouses", endpoint: "/api/admin/warehouses", nameField: "name",
+    fields: [
+      { key: "name", label: "Name" },
     ],
   },
 ];
