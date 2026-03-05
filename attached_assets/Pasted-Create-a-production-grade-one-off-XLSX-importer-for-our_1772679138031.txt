@@ -1,0 +1,71 @@
+Create a production-grade one-off XLSX importer for our Drizzle schema.
+
+Context
+- Drizzle tables are defined in shared/schema.ts:
+  - users, tickets, ticket_items, ticket_messages, subcontractors, departments, department_techs, ticket_statuses, email_logs
+- Excel files will be placed in: attached_assets/import/
+  - Tickets.xlsx
+  - ItemsInbound.xlsx
+  - ItemsOutbound.xlsx
+  - Departments.xlsx
+  - DepartmentTechs.xlsx
+  - TicketStatus.xlsx
+  - MTSSubcontractorDetails.xlsx
+
+Tasks
+1) Add dependencies:
+   - xlsx
+   - tsx (if not present) OR ensure we can run TS scripts
+2) Create scripts/importSharePoint.ts that:
+   - Reads each XLSX file (first sheet) using xlsx.
+   - Imports in this order:
+     A) ticket_statuses (from TicketStatus.xlsx)
+     B) departments (from Departments.xlsx)
+     C) department_techs (from DepartmentTechs.xlsx)
+     D) subcontractors (from MTSSubcontractorDetails.xlsx)
+     E) users (derived from Tickets.xlsx ownerEmail/assignedToEmail)
+     F) tickets (from Tickets.xlsx)
+     G) ticket_items (from ItemsInbound.xlsx and ItemsOutbound.xlsx)
+   - Uses UPSERT behaviour to avoid duplicates:
+     - If legacyId exists in the row -> upsert by legacyId
+     - Otherwise use unique keys:
+       - users: email
+       - departments: title
+       - ticket_statuses: title
+       - subcontractors: name + project (or name if project blank)
+   - Ticket ID mapping:
+     - Tickets from SharePoint have an ID column (legacy ticket id). Insert tickets with tickets.legacyId = that ID.
+     - Build a map from legacyId -> new tickets.id by querying after insertion.
+     - When importing items, each item has TicketID (SharePoint legacy ticket id). Use the map to set ticket_items.ticketId = new ticket id.
+   - Ticket direction + item direction:
+     - Tickets.direction: map inbound/outbound from the Tickets.xlsx Direction column (case-insensitive).
+     - ticket_items.direction: INBOUND for ItemsInbound, OUTBOUND for ItemsOutbound.
+   - Field mapping (use best-effort with safe fallbacks):
+     - tickets fields: status, priority, state, projectName, warehouse, serviceOrder, ownerName, ownerEmail, assignedToName, assignedToEmail,
+       deliveryOrPickup, deliveringTo, siteNameCoordinates, deliveryAddress, requestedDeliveryDate, deliveryTimeSlots, driverKey, deliverySignoff,
+       accessConditions, liftingEquipment, steelWork, receiversName, receiversPhone, pickupDate, pickupTime,
+       subcontractorName, subcontractorEmail, internalComments, goodsReceipt, createdAt, updatedAt, closedAt
+     - ticket_items fields: itemCode, description, uom (if present), quantity, status, comments, serviceOrder, legacyId (from the item ID column if present)
+   - Users creation:
+     - For ownerEmail and assignedToEmail found in Tickets.xlsx, ensure a user exists.
+     - Name parsing: split OwnerName/AssignedToName into first/last (fallback lastName="Unknown").
+     - Assign roles: default USER for owners; COORDINATOR for assignedTo if you can infer (otherwise default USER and allow admin to change later).
+   - Subcontractor linking:
+     - Insert subcontractors table from MTSSubcontractorDetails.xlsx.
+     - For each ticket, if subcontractorName matches subcontractors.name, set tickets.subcontractorId accordingly (best-effort).
+     - Always keep subcontractorName/subcontractorEmail fields as provided in tickets regardless.
+   - Date handling:
+     - Safely parse date columns (Excel numeric date or ISO strings). If invalid, set null.
+   - Logging:
+     - Print counts inserted/updated for each table.
+     - Print number of skipped rows and why (missing required fields, missing ticket map, etc).
+
+3) Ensure the importer uses our existing DB connection/utilities:
+   - Use the existing db instance from server (search for server/db.ts or server/src/db.ts).
+   - Use Drizzle insert/update APIs and onConflictDoUpdate where supported.
+
+4) Add a root package.json script:
+   - "import:sharepoint": "tsx scripts/importSharePoint.ts"
+
+Return: the full scripts/importSharePoint.ts code and any package.json changes.
+Do not ask questions. Assume file column names are close to SharePoint defaults (ID, Title, Description, SortOrder, Email, TicketID, ItemCode, Quantity, Status, Comments, ServiceOrder, Direction, OwnerName, OwnerEmail, AssignedTo, AssignedToEmail, Created, Modified) and implement tolerant header matching (case-insensitive, ignores spaces and underscores).

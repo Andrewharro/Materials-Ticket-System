@@ -19,6 +19,7 @@ Full-stack materials ticketing system replacing a Power Apps + SharePoint soluti
 - `server/emailService.ts` — Nodemailer email + EmailLog
 - `server/db.ts` — Drizzle + pg pool
 - `server/seed.ts` — Default admin user + ticket statuses
+- `scripts/importSharePoint.ts` — One-off XLSX importer for SharePoint data
 - `client/src/App.tsx` — React Router with protected routes
 - `client/src/lib/auth.ts` — Frontend auth helpers (token, apiFetch)
 - `client/src/components/Sidebar.tsx` — Navigation sidebar
@@ -27,6 +28,14 @@ Full-stack materials ticketing system replacing a Power Apps + SharePoint soluti
 ## Data Model
 Tables: users, tickets, ticket_items, ticket_messages, subcontractors, departments, department_techs, ticket_statuses, app_settings, email_logs
 Enums: user_role (USER/COORDINATOR/ADMIN), ticket_direction (INBOUND/OUTBOUND), ticket_status_key
+
+## Imported Data (from SharePoint XLSX)
+- 1,869 tickets with legacy IDs
+- 1,674 ticket items (mapped via legacy ticket IDs)
+- 49 subcontractors
+- 13 departments, 11 department techs
+- 6 ticket statuses
+- 34 users derived from ticket owner/assigned emails
 
 ## Roles
 - **USER**: Can create tickets, edit own drafts, post messages
@@ -49,6 +58,7 @@ Enums: user_role (USER/COORDINATOR/ADMIN), ticket_direction (INBOUND/OUTBOUND), 
 - `npm run db:push` — Push schema to database
 - `npm run build` — Production build
 - `npm run start` — Production server
+- `npm run import:sharepoint` — Run XLSX importer (one-off)
 
 ## Default Login
 - admin@example.com / ChangeMe123!
