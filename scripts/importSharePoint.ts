@@ -395,11 +395,12 @@ async function importTickets(
 async function importItems(
   filename: string,
   direction: "INBOUND" | "OUTBOUND",
-  legacyToNewId: Map<number, number>
+  legacyToNewId: Map<number, number>,
+  ticketDirectionMap: Map<number, string>
 ) {
   console.log(`\n--- Importing ${direction} Items from ${filename} ---`);
   const rows = readXlsx(filename);
-  let inserted = 0, updated = 0, skipped = 0, missingTicket = 0;
+  let inserted = 0, updated = 0, skipped = 0, missingTicket = 0, dirMismatch = 0, blankRows = 0;
 
   for (const row of rows) {
     const legacyTicketId = intVal(col(row, "TicketID"));
@@ -408,15 +409,29 @@ async function importItems(
     const newTicketId = legacyToNewId.get(legacyTicketId);
     if (!newTicketId) { missingTicket++; continue; }
 
+    const ticketDir = ticketDirectionMap.get(newTicketId);
+    if (ticketDir !== direction) {
+      dirMismatch++;
+      continue;
+    }
+
+    const itemCode = str(col(row, "ItemCode"), 255);
+    const description = str(col(row, "Description"));
+    const quantity = num(col(row, "Quantity"));
+    if (!itemCode && !description && quantity == null) {
+      blankRows++;
+      continue;
+    }
+
     const legacyId = intVal(col(row, "ID"));
 
     const data: any = {
       ticketId: newTicketId,
       direction,
-      itemCode: str(col(row, "ItemCode"), 255),
-      description: str(col(row, "Description")),
+      itemCode,
+      description,
       uom: str(col(row, "UOM", "Uom"), 50),
-      quantity: num(col(row, "Quantity")),
+      quantity,
       status: str(col(row, "Status"), 100),
       comments: str(col(row, "Comments")),
       serviceOrder: str(col(row, "ServiceOrder"), 255),
@@ -440,7 +455,7 @@ async function importItems(
     inserted++;
   }
 
-  console.log(`  Inserted: ${inserted}, Updated: ${updated}, Skipped: ${skipped}, Missing ticket: ${missingTicket}`);
+  console.log(`  Inserted: ${inserted}, Updated: ${updated}, Skipped: ${skipped}, Missing ticket: ${missingTicket}, Dir mismatch: ${dirMismatch}, Blank: ${blankRows}`);
 }
 
 async function main() {
@@ -456,8 +471,15 @@ async function main() {
   const userIdMap = await ensureUsers(ticketRows);
   const legacyToNewId = await importTickets(userIdMap, subcontractorList);
 
-  await importItems("ItemsInbound.xlsx", "INBOUND", legacyToNewId);
-  await importItems("ItemsOutbound.xlsx", "OUTBOUND", legacyToNewId);
+  const ticketDirectionMap = new Map<number, string>();
+  const allTickets = await db.select({ id: tickets.id, direction: tickets.direction }).from(tickets);
+  for (const t of allTickets) {
+    ticketDirectionMap.set(t.id, t.direction);
+  }
+  console.log(`\nBuilt ticket direction map: ${ticketDirectionMap.size} tickets`);
+
+  await importItems("ItemsInbound.xlsx", "INBOUND", legacyToNewId, ticketDirectionMap);
+  await importItems("ItemsOutbound.xlsx", "OUTBOUND", legacyToNewId, ticketDirectionMap);
 
   console.log("\n=== Import Complete ===");
   process.exit(0);

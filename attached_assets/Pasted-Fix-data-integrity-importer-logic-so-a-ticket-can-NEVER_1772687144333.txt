@@ -1,0 +1,74 @@
+Fix data integrity + importer logic so a ticket can NEVER be both inbound and outbound, and add an automated sanity check at the end.
+
+Context
+- Drizzle schema in shared/schema.ts
+- Tables: tickets, ticket_items
+- tickets has: id (DB), legacyId (SharePoint ticket ID), direction (INBOUND/OUTBOUND)
+- ticket_items has: ticketId (FK to tickets.id), direction, legacyId, serviceOrder, comments, etc
+- Excel inputs: Tickets.xlsx, ItemsInbound.xlsx, ItemsOutbound.xlsx
+
+Problem
+- Some tickets (e.g. ticket_id 733) have BOTH INBOUND and OUTBOUND items in ticket_items.
+- This must not be possible. A ticket is either INBOUND or OUTBOUND, never both.
+
+Hard rules to enforce
+1) Each ticket has exactly one direction: tickets.direction is the source of truth.
+2) A ticket may only display items where ticket_items.direction == tickets.direction.
+3) A ticket may only *store* items where ticket_items.direction == tickets.direction.
+4) ItemsInbound.xlsx must only populate INBOUND tickets.
+5) ItemsOutbound.xlsx must only populate OUTBOUND tickets.
+6) If the same legacy ticket id appears in both item files, that is NOT two directions for one ticket. Only the file matching the ticket’s direction is valid. The other rows must be skipped.
+
+Required changes (do all)
+A) Importer: scripts/importSharePoint.ts
+- Build legacyToNewTicketId map from tickets.legacyId -> tickets.id.
+- While importing ItemsInbound.xlsx:
+  - Determine legacyTicketId = TicketID
+  - Look up dbTicketId from map; if missing log+skip
+  - Fetch ticket direction for dbTicketId; if not INBOUND log+skip (do not insert)
+  - Insert/upsert item with direction = INBOUND, ticketId = dbTicketId
+- While importing ItemsOutbound.xlsx:
+  - Same, but require ticket direction == OUTBOUND, else log+skip
+- Upsert uniqueness:
+  - Keep the composite unique index on (ticket_items.legacyId, ticket_items.direction) OR use a deterministic natural key if item legacy id missing.
+- Never import “blank” item rows (where itemCode/description/quantity all null). Skip and log.
+
+B) Data cleanup: one-time script
+- Create scripts/enforceTicketDirectionIntegrity.ts that:
+  1) Deletes any mismatched rows:
+     DELETE FROM ticket_items ti
+     USING tickets t
+     WHERE ti.ticket_id = t.id AND ti.direction <> t.direction;
+  2) Deletes any null/blank item rows:
+     delete rows where item_code IS NULL AND description IS NULL AND quantity IS NULL;
+  3) Prints counts deleted per category.
+
+C) API + UI
+- Ensure GET /api/tickets/:id only returns items filtered by the ticket direction.
+- Ensure TicketDetail line items grid includes editable Service Order (ticket_items.serviceOrder) and Comments (ticket_items.comments).
+- Ensure ticket-level label is “Service Order Ticket” (UI label only, keep DB field tickets.serviceOrder).
+
+D) Sanity check (must run and report pass/fail)
+- Create scripts/sanityCheck.ts that runs these checks and prints PASS/FAIL:
+  1) No ticket has items of both directions:
+     For each ticket_id, count distinct directions in ticket_items; must be 0 or 1 and if 1 must equal tickets.direction.
+  2) No mismatched item directions exist:
+     SELECT COUNT(*) FROM ticket_items ti JOIN tickets t ON t.id=ti.ticket_id WHERE ti.direction <> t.direction; must be 0
+  3) No blank item rows exist; must be 0
+  4) Report top 10 tickets by item count for quick spot check.
+
+E) Wire scripts
+- Add package scripts:
+  - "fix:integrity": "tsx scripts/enforceTicketDirectionIntegrity.ts"
+  - "import:sharepoint": "tsx scripts/importSharePoint.ts"
+  - "sanity:check": "tsx scripts/sanityCheck.ts"
+- After changes, run in this exact order automatically (or tell me to run):
+  1) npm run fix:integrity
+  2) npm run import:sharepoint
+  3) npm run sanity:check
+- If sanity check fails, stop and print the failing queries/results.
+
+Acceptance
+- A ticket can never show or store both inbound and outbound items.
+- ticket_id 733 contains only items matching tickets.direction (and only ~10 if that’s what the source data supports).
+- Sanity check prints PASS for all rules.

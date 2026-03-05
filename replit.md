@@ -32,13 +32,15 @@ Enums: user_role (USER/COORDINATOR/ADMIN), ticket_direction (INBOUND/OUTBOUND), 
 
 ## Imported Data (from SharePoint XLSX)
 - 1,869 tickets with legacy IDs
-- 3,348 ticket items (1,674 inbound + 1,674 outbound, mapped via legacy ticket IDs)
-- Items linked via composite unique key (legacyId, direction) to avoid INBOUND/OUTBOUND overlap
-- 177 unique tickets have associated line items
-- 49 subcontractors
-- 13 departments, 11 department techs
-- 6 ticket statuses
+- 1,592 ticket items (all INBOUND; outbound items file references same INBOUND tickets, so those rows are skipped)
+- Items linked via composite unique key (legacyId, direction); direction integrity enforced: items must match ticket direction
+- 49 subcontractors, 13 departments, 11 department techs, 6 ticket statuses
 - 34 users derived from ticket owner/assigned emails
+
+## Data Integrity Scripts
+- `npx tsx scripts/enforceTicketDirectionIntegrity.ts` — Deletes mismatched-direction items and blank rows
+- `npx tsx scripts/importSharePoint.ts` — XLSX importer (idempotent upsert, skips direction mismatches)
+- `npx tsx scripts/sanityCheck.ts` — Verifies no direction mismatches, no blank items, reports top tickets
 
 ## Roles
 - **USER**: Can create tickets, edit own drafts, post messages
