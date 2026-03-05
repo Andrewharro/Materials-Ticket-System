@@ -282,9 +282,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertTicketItems(ticketId: number, items: InsertTicketItem[]): Promise<TicketItem[]> {
+    const ticket = await db.select({ direction: tickets.direction }).from(tickets).where(eq(tickets.id, ticketId));
+    if (!ticket.length) {
+      throw new Error(`Ticket ${ticketId} not found`);
+    }
+    const ticketDirection = ticket[0].direction;
+
     const result: TicketItem[] = [];
     for (const item of items) {
-      const [row] = await db.insert(ticketItems).values({ ...item, ticketId }).returning();
+      if (item.direction && item.direction !== ticketDirection) {
+        throw new Error(`Item direction "${item.direction}" does not match ticket direction "${ticketDirection}"`);
+      }
+      const [row] = await db.insert(ticketItems).values({ ...item, ticketId, direction: ticketDirection }).returning();
       result.push(row);
     }
     return result;

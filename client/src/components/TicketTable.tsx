@@ -78,7 +78,7 @@ function formatCellValue(key: string, ticket: any): React.ReactNode {
   if (key === "id") {
     return (
       <Link href={`/tickets/${ticket.id}`}>
-        <span className="cursor-pointer hover:underline text-blue-600 font-medium" data-testid={`link-ticket-${ticket.id}`}>#{ticket.id}</span>
+        <span className="cursor-pointer hover:underline text-blue-600 font-medium" data-testid={`link-ticket-${ticket.id}`}>#{ticket.legacyId || ticket.id}</span>
       </Link>
     );
   }

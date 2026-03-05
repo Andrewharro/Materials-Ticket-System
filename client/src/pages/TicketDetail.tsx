@@ -276,7 +276,7 @@ export default function TicketDetail() {
           </Button>
           <div>
             <h1 className="text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-3" data-testid="text-ticket-title">
-              {isNew ? "New Ticket" : `Ticket #${ticket.id}`}
+              {isNew ? "New Ticket" : `Ticket #${ticket.legacyId || ticket.id}`}
               <Badge variant="outline" className="text-sm">
                 {ticketDirection}
               </Badge>
@@ -446,7 +446,7 @@ export default function TicketDetail() {
                     ))}
                     {items.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-4 text-slate-500">No items. Click "Add Item" to begin.</TableCell>
+                        <TableCell colSpan={8} className="text-center py-4 text-slate-500">No line items were imported for this ticket from the SharePoint data source. Click "Add Item" to add items manually.</TableCell>
                       </TableRow>
                     )}
                   </TableBody>

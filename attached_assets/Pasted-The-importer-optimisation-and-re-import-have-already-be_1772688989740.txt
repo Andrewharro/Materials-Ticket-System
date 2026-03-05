@@ -1,0 +1,195 @@
+The importer optimisation and re-import have already been completed successfully.
+Do NOT rebuild the importer again.
+
+We now need to fix three things in the system:
+
+1) UI should display SharePoint TicketID (legacy_id) instead of the database id
+2) Enforce strict direction integrity between tickets and ticket_items
+3) Clean up remaining bad data rows from earlier imports
+
+Follow these instructions carefully.
+
+
+--------------------------------------------------
+PART 1 — DISPLAY SHAREPOINT TICKET ID IN THE UI
+--------------------------------------------------
+
+The UI currently displays:
+
+tickets.id   (database primary key)
+
+Users must instead see:
+
+tickets.legacy_id   (SharePoint Ticket ID)
+
+Update BOTH ticket list pages:
+
+Inbound Tickets page
+Outbound Tickets page
+
+
+Change the first column:
+
+OLD
+
+Ticket ID:
+#{ticket.id}
+
+
+NEW
+
+Ticket ID:
+#{ticket.legacyId}
+
+
+IMPORTANT
+
+The link must still use the DB id internally.
+
+Example:
+
+<Link to={`/tickets/${ticket.id}`}>
+  #{ticket.legacyId}
+</Link>
+
+So users see the SharePoint ticket number but routing still works.
+
+
+--------------------------------------------------
+PART 2 — CLEAN EXISTING BAD DATA
+--------------------------------------------------
+
+The database still contains legacy incorrect rows.
+
+Example shown in DB:
+ticket_id = 733 contains both INBOUND and OUTBOUND rows.
+
+This must never happen.
+
+Run these cleanup queries.
+
+
+Remove mismatched directions
+
+DELETE FROM ticket_items ti
+USING tickets t
+WHERE ti.ticket_id = t.id
+AND ti.direction <> t.direction;
+
+
+Remove blank item rows
+
+DELETE FROM ticket_items
+WHERE item_code IS NULL
+AND description IS NULL
+AND quantity IS NULL;
+
+
+
+--------------------------------------------------
+PART 3 — ENFORCE DATA INTEGRITY IN CODE
+--------------------------------------------------
+
+Update the item creation logic so that:
+
+ticket_items.direction MUST always equal tickets.direction.
+
+Before inserting an item:
+
+1. Load the ticket using ticket_id
+2. Compare directions
+3. If mismatch → reject insert with error
+
+
+Example logic:
+
+const ticket = await db.query.tickets.findFirst({
+  where: eq(tickets.id, ticketId)
+})
+
+if (ticket.direction !== item.direction) {
+   throw new Error("Item direction must match ticket direction")
+}
+
+
+
+--------------------------------------------------
+PART 4 — UI IMPROVEMENT FOR EMPTY TICKETS
+--------------------------------------------------
+
+Some SharePoint tickets legitimately have no line items
+because the Excel file only contained TicketIDs 159–2122.
+
+Example:
+DB ticket id 1865
+legacy_id 153
+
+These will always show empty.
+
+Instead of just "No items", show a clearer message.
+
+Replace:
+
+"No items"
+
+With:
+
+"No line items were imported for this ticket from the SharePoint data source."
+
+
+--------------------------------------------------
+PART 5 — SANITY CHECKS
+--------------------------------------------------
+
+Run these verification queries.
+
+
+1) No ticket has mixed directions
+
+SELECT ticket_id, COUNT(DISTINCT direction)
+FROM ticket_items
+GROUP BY ticket_id
+HAVING COUNT(DISTINCT direction) > 1;
+
+
+Expected result: 0 rows
+
+
+2) No mismatched directions
+
+SELECT COUNT(*)
+FROM ticket_items ti
+JOIN tickets t ON t.id = ti.ticket_id
+WHERE ti.direction <> t.direction;
+
+
+Expected result: 0
+
+
+3) Verify ticket 733
+
+SELECT id, legacy_id, direction
+FROM tickets
+WHERE legacy_id = 733;
+
+SELECT direction, COUNT(*)
+FROM ticket_items
+WHERE ticket_id = (
+  SELECT id FROM tickets WHERE legacy_id = 733
+)
+GROUP BY direction;
+
+
+
+--------------------------------------------------
+PART 6 — FINAL CONFIRMATION
+--------------------------------------------------
+
+Confirm that:
+
+✓ Ticket list pages show SharePoint Ticket IDs
+✓ Clicking a ticket still opens the correct record
+✓ No ticket has both INBOUND and OUTBOUND items
+✓ Blank item rows are removed
+✓ Ticket 733 only has items matching its direction
+✓ Empty tickets display the improved message
