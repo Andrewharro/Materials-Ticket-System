@@ -5,7 +5,7 @@ import { Inbox, Send, Clock, CheckCircle, X } from "lucide-react";
 import { apiGet } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import {
-  PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
+  Tooltip, Legend, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Line, ComposedChart,
 } from "recharts";
 
@@ -148,25 +148,14 @@ export default function Dashboard() {
             {projectData.length === 0 ? (
               <p className="text-slate-400 text-center py-12">No data</p>
             ) : (
-              <ResponsiveContainer width="100%" height={350}>
-                <PieChart>
-                  <Pie
-                    data={projectData}
-                    dataKey="count"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={120}
-                    label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                    labelLine={true}
-                  >
-                    {projectData.map((_entry, index) => (
-                      <Cell key={index} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                    ))}
-                  </Pie>
+              <ResponsiveContainer width="100%" height={Math.max(300, projectData.length * 32 + 40)}>
+                <BarChart data={projectData} layout="vertical" margin={{ left: 10, right: 30, top: 5, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
+                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} />
+                  <YAxis type="category" dataKey="name" width={150} tick={{ fontSize: 11 }} />
                   <Tooltip formatter={(value: number) => [value, "Tickets"]} />
-                  <Legend />
-                </PieChart>
+                  <Bar dataKey="count" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={20} />
+                </BarChart>
               </ResponsiveContainer>
             )}
           </CardContent>
