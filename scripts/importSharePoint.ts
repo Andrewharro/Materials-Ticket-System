@@ -401,6 +401,21 @@ async function importItems(
   const rows = readXlsx(filename);
   let inserted = 0, updated = 0, skipped = 0, missingTicket = 0, blankRows = 0;
 
+  const existingItems = await db.select({
+    id: ticketItems.id,
+    legacyId: ticketItems.legacyId,
+    direction: ticketItems.direction,
+  }).from(ticketItems);
+  const existingMap = new Map<string, number>();
+  for (const item of existingItems) {
+    if (item.legacyId) {
+      existingMap.set(`${item.legacyId}_${item.direction}`, item.id);
+    }
+  }
+
+  const toInsert: any[] = [];
+  const toUpdate: { id: number; data: any }[] = [];
+
   for (const row of rows) {
     const legacyTicketId = intVal(col(row, "TicketID"));
     if (!legacyTicketId) { skipped++; continue; }
@@ -437,18 +452,24 @@ async function importItems(
     };
 
     if (legacyId) {
-      const existing = await db.select().from(ticketItems).where(
-        and(eq(ticketItems.legacyId, legacyId), eq(ticketItems.direction, direction))
-      );
-      if (existing.length > 0) {
-        await db.update(ticketItems).set(data).where(eq(ticketItems.id, existing[0].id));
+      const existingId = existingMap.get(`${legacyId}_${direction}`);
+      if (existingId) {
+        toUpdate.push({ id: existingId, data });
         updated++;
         continue;
       }
     }
 
-    await db.insert(ticketItems).values(data);
+    toInsert.push(data);
     inserted++;
+  }
+
+  const BATCH = 500;
+  for (let i = 0; i < toInsert.length; i += BATCH) {
+    await db.insert(ticketItems).values(toInsert.slice(i, i + BATCH));
+  }
+  for (const { id, data } of toUpdate) {
+    await db.update(ticketItems).set(data).where(eq(ticketItems.id, id));
   }
 
   console.log(`  Inserted: ${inserted}, Updated: ${updated}, Skipped: ${skipped}, Missing ticket: ${missingTicket}, Blank: ${blankRows}`);

@@ -84,11 +84,14 @@ async function main() {
       allPassed = false;
     } else if (r.item_count === 0) {
       console.log("  CHECK: WARN - No items found (may be expected if source data has none for this ticket)");
-    } else if (r.item_dirs && r.item_dirs.length === 1 && r.item_dirs[0] === "OUTBOUND") {
-      console.log("  CHECK: PASS - All items are OUTBOUND matching ticket direction");
     } else {
-      console.log("  CHECK: FAIL - Items have unexpected directions");
-      allPassed = false;
+      const dirs = Array.isArray(r.item_dirs) ? r.item_dirs : String(r.item_dirs).replace(/[{}]/g, "").split(",");
+      if (dirs.length === 1 && dirs[0] === r.direction) {
+        console.log(`  CHECK: PASS - All ${r.item_count} items are ${r.direction} matching ticket direction`);
+      } else {
+        console.log(`  CHECK: FAIL - Items have unexpected directions: ${r.item_dirs}`);
+        allPassed = false;
+      }
     }
   }
 
