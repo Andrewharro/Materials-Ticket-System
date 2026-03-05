@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
@@ -172,6 +173,8 @@ function ColumnHeaderDropdown({ columnKey, direction, sortBy, sortOrder, filterV
   const [searchText, setSearchText] = useState("");
   const [distinctValues, setDistinctValues] = useState<string[]>([]);
   const [loadingValues, setLoadingValues] = useState(false);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const label = ALL_COLUMNS.find(c => c.key === columnKey)?.label || columnKey;
   const isSorted = sortBy === columnKey;
@@ -179,13 +182,21 @@ function ColumnHeaderDropdown({ columnKey, direction, sortBy, sortOrder, filterV
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node) &&
+          buttonRef.current && !buttonRef.current.contains(e.target as Node)) {
         setOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setDropdownPos({ top: rect.bottom, left: rect.left });
+    }
+  }, [open]);
 
   useEffect(() => {
     if (open) {
@@ -203,8 +214,9 @@ function ColumnHeaderDropdown({ columnKey, direction, sortBy, sortOrder, filterV
     : distinctValues;
 
   return (
-    <div ref={panelRef} className="relative">
+    <div>
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setOpen(!open)}
         className={cn(
@@ -226,8 +238,8 @@ function ColumnHeaderDropdown({ columnKey, direction, sortBy, sortOrder, filterV
           <ChevronDown className="w-3 h-3 text-slate-400 ml-0.5" />
         </span>
       </button>
-      {open && (
-        <div className="absolute left-0 z-50 mt-0 w-56 rounded-md border bg-white shadow-lg flex flex-col" style={{ maxHeight: "340px" }}>
+      {open && dropdownPos && createPortal(
+        <div ref={panelRef} className="fixed z-[9999] w-56 rounded-md border bg-white shadow-lg flex flex-col" style={{ top: dropdownPos.top, left: dropdownPos.left, maxHeight: "340px" }}>
           <div className="border-b">
             <button
               type="button"
@@ -256,7 +268,6 @@ function ColumnHeaderDropdown({ columnKey, direction, sortBy, sortOrder, filterV
               </button>
             )}
           </div>
-
           <div className="px-2 py-2 border-b">
             <div className="relative">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
@@ -271,7 +282,6 @@ function ColumnHeaderDropdown({ columnKey, direction, sortBy, sortOrder, filterV
               />
             </div>
           </div>
-
           <div className="overflow-y-auto flex-1" style={{ maxHeight: "180px" }}>
             {isFiltered && (
               <button
@@ -305,7 +315,8 @@ function ColumnHeaderDropdown({ columnKey, direction, sortBy, sortOrder, filterV
               ))
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -851,7 +862,7 @@ export default function TicketTable({ direction }: { direction: "INBOUND" | "OUT
               {visibleColumns.map(key => {
                 const widths: Record<string, string> = { id: "90px", itemCount: "70px", status: "90px", priority: "80px", state: "60px" };
                 return (
-                <TableHead key={key} className="whitespace-nowrap p-0 overflow-hidden" style={{ width: widths[key] || "150px" }}>
+                <TableHead key={key} className="whitespace-nowrap p-0" style={{ width: widths[key] || "150px" }}>
                   <ColumnHeaderDropdown
                     columnKey={key}
                     direction={direction}
