@@ -142,16 +142,40 @@ export class DatabaseStorage implements IStorage {
     if (filters.search) {
       const s = `%${filters.search}%`;
       const searchConds: any[] = [
+        ilike(tickets.status, s),
         ilike(tickets.serviceOrder, s),
+        ilike(tickets.projectName, s),
+        ilike(tickets.state, s),
         ilike(tickets.ownerName, s),
         ilike(tickets.assignedToName, s),
-        ilike(tickets.state, s),
-        ilike(tickets.projectName, s),
+        ilike(tickets.priority, s),
+        ilike(tickets.warehouse, s),
+        ilike(tickets.ownerEmail, s),
+        ilike(tickets.assignedToEmail, s),
+        ilike(tickets.deliveryOrPickup, s),
+        ilike(tickets.deliveringTo, s),
+        ilike(tickets.siteNameCoordinates, s),
+        ilike(tickets.deliveryAddress, s),
+        ilike(tickets.deliveryTimeSlots, s),
+        ilike(tickets.driverKey, s),
+        ilike(tickets.deliverySignoff, s),
+        ilike(tickets.accessConditions, s),
+        ilike(tickets.liftingEquipment, s),
+        ilike(tickets.steelWork, s),
+        ilike(tickets.receiversName, s),
+        ilike(tickets.receiversPhone, s),
+        ilike(tickets.pickupTime, s),
+        ilike(tickets.subcontractorName, s),
+        ilike(tickets.subcontractorEmail, s),
+        ilike(tickets.internalComments, s),
+        ilike(tickets.goodsReceipt, s),
+        sql`CAST(${tickets.id} AS TEXT) ILIKE ${s}`,
+        sql`TO_CHAR(${tickets.requestedDeliveryDate}, 'YYYY-MM-DD') ILIKE ${s}`,
+        sql`TO_CHAR(${tickets.pickupDate}, 'YYYY-MM-DD') ILIKE ${s}`,
+        sql`TO_CHAR(${tickets.createdAt}, 'YYYY-MM-DD') ILIKE ${s}`,
+        sql`TO_CHAR(${tickets.updatedAt}, 'YYYY-MM-DD') ILIKE ${s}`,
+        sql`TO_CHAR(${tickets.closedAt}, 'YYYY-MM-DD') ILIKE ${s}`,
       ];
-      const numVal = parseInt(filters.search, 10);
-      if (!isNaN(numVal)) {
-        searchConds.push(eq(tickets.id, numVal));
-      }
       conditions.push(or(...searchConds));
     }
 
