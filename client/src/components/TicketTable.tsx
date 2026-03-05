@@ -720,7 +720,7 @@ export default function TicketTable({ direction }: { direction: "INBOUND" | "OUT
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [page, setPage] = useState(1);
-  const pageSize = 25;
+  const [pageSize, setPageSize] = useState(25);
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => loadColumnConfig(direction));
   const [sortBy, setSortBy] = useState<string | null>("id");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
@@ -855,7 +855,7 @@ export default function TicketTable({ direction }: { direction: "INBOUND" | "OUT
         </div>
       </div>
 
-      <div className="bg-white rounded-md border border-slate-200 shadow-sm overflow-x-auto">
+      <div className="bg-white rounded-md border border-slate-200 shadow-sm overflow-x-auto overflow-y-auto" style={{ maxHeight: "calc(100vh - 280px)" }}>
         <Table className="table-fixed w-full">
           <TableHeader className="bg-slate-50">
             <TableRow>
@@ -903,9 +903,22 @@ export default function TicketTable({ direction }: { direction: "INBOUND" | "OUT
         </Table>
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between pt-2">
-          <p className="text-sm text-slate-500">{total} ticket{total !== 1 ? "s" : ""}</p>
+      <div className="flex items-center justify-between pt-3">
+        <p className="text-sm text-slate-500">{total} ticket{total !== 1 ? "s" : ""}</p>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-slate-500">Rows per page:</span>
+            <select
+              value={pageSize}
+              onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
+              className="border rounded px-2 py-1 text-sm text-slate-700 bg-white"
+              data-testid="select-page-size"
+            >
+              {[10, 25, 50, 100].map(n => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
+          </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(p => p - 1)} data-testid="button-prev-page">
               <ChevronLeft className="w-4 h-4" />
@@ -916,7 +929,7 @@ export default function TicketTable({ direction }: { direction: "INBOUND" | "OUT
             </Button>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
