@@ -1,0 +1,230 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  COORDINATOR
+  ADMIN
+}
+
+enum TicketDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum TicketStatusKey {
+  NEW
+  OPEN
+  ON_HOLD
+  CLOSED
+  NOT_ASSIGNED
+  OTHER
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  firstName    String
+  lastName     String
+  role         UserRole @default(USER)
+  isActive     Boolean  @default(true)
+  passwordHash String?  @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  createdTickets  Ticket[] @relation("TicketCreatedBy")
+  assignedTickets Ticket[] @relation("TicketAssignedTo")
+  messages        TicketMessage[]
+}
+
+model Ticket {
+  id        Int             @id @default(autoincrement())
+  direction TicketDirection
+  status    String
+  statusKey TicketStatusKey @default(OTHER)
+
+  priority     String?
+  state        String?
+  projectName  String?
+  warehouse    String?
+  serviceOrder String?
+
+  ownerName  String?
+  ownerEmail String?
+
+  assignedToName  String?
+  assignedToEmail String?
+
+  createdByUserId  Int?
+  assignedToUserId Int?
+  createdByUser    User? @relation("TicketCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  assignedToUser   User? @relation("TicketAssignedTo", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+
+  deliveryOrPickup      String?
+  deliveringTo          String?
+  siteNameCoordinates   String?
+  deliveryAddress       String?
+  requestedDeliveryDate DateTime?
+  deliveryTimeSlots     String?
+  driverKey             String?
+  deliverySignoff       String?
+  accessConditions      String?
+  liftingEquipment      String?
+  steelWork             String?
+  receiversName         String?
+  receiversPhone        String?
+  pickupDate            DateTime?
+  pickupTime            String?
+
+  subcontractorId    Int?
+  subcontractorName  String?
+  subcontractorEmail String?
+  subcontractor      Subcontractor? @relation(fields: [subcontractorId], references: [id], onDelete: SetNull)
+
+  internalComments String? @db.Text
+  goodsReceipt      String? @db.Text
+
+  legacyId Int? @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  closedAt  DateTime?
+
+  items     TicketItem[]
+  messages  TicketMessage[]
+  emailLogs EmailLog[]
+
+  @@index([direction, statusKey])
+  @@index([status])
+  @@index([createdByUserId])
+  @@index([assignedToUserId])
+  @@index([serviceOrder])
+  @@index([projectName])
+  @@index([state])
+}
+
+model TicketItem {
+  id        Int             @id @default(autoincrement())
+  ticketId  Int
+  direction TicketDirection
+
+  itemCode     String?
+  description  String?
+  uom          String?
+  quantity     Decimal? @db.Decimal(12, 2)
+  status       String?
+  comments     String?  @db.Text
+  serviceOrder String?
+
+  legacyId Int? @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@index([direction])
+  @@index([itemCode])
+}
+
+model TicketMessage {
+  id           Int      @id @default(autoincrement())
+  ticketId     Int
+  senderUserId Int
+  messageText  String   @db.Text
+  createdAt    DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  sender User   @relation(fields: [senderUserId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
+  @@index([senderUserId])
+}
+
+model Subcontractor {
+  id               Int     @id @default(autoincrement())
+  name             String
+  email            String?
+  receiversName    String?
+  receiversContact String?
+  address          String?
+  project          String?
+  legacyId         Int? @unique
+  tickets          Ticket[]
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([name])
+  @@index([project])
+}
+
+model Department {
+  id          Int     @id @default(autoincrement())
+  title       String  @unique
+  description String?
+  sortOrder   Int?
+  legacyId    Int? @unique
+  techs       DepartmentTech[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model DepartmentTech {
+  id           Int    @id @default(autoincrement())
+  name         String
+  email        String?
+  departmentId Int?
+  legacyId     Int? @unique
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([departmentId])
+  @@index([name])
+}
+
+model TicketStatus {
+  id          Int           @id @default(autoincrement())
+  title       String        @unique
+  description String?
+  sortOrder   Int?
+  key         TicketStatusKey @default(OTHER)
+  legacyId    Int? @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([sortOrder])
+}
+
+model AppSetting {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  value     String   @db.Text
+  updatedAt DateTime @updatedAt
+}
+
+model EmailLog {
+  id          Int      @id @default(autoincrement())
+  ticketId    Int?
+  messageId   Int?
+  toEmail     String
+  subject     String
+  bodyPreview String?  @db.Text
+  status      String
+  errorText   String?  @db.Text
+  sentAt      DateTime @default(now())
+
+  ticket  Ticket?        @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+  message TicketMessage? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId])
+  @@index([messageId])
+  @@index([toEmail])
+}
