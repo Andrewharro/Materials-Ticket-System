@@ -107,6 +107,42 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/tickets/create-full", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user!.userId);
+      if (!user) return res.status(401).json({ message: "User not found" });
+
+      const { ticket: ticketData, items: itemsData, direction } = req.body;
+
+      if (!ticketData.state) {
+        return res.status(400).json({ message: "State is required" });
+      }
+      if (!ticketData.projectName) {
+        return res.status(400).json({ message: "Project name is required" });
+      }
+      if (!itemsData || !Array.isArray(itemsData) || !itemsData.some((i: any) => i.itemCode)) {
+        return res.status(400).json({ message: "At least one item with an item code is required" });
+      }
+
+      const newTicket = await storage.createTicket({
+        direction,
+        status: ticketData.status || "New",
+        statusKey: ticketData.statusKey || "NEW",
+        createdByUserId: user.id,
+        ownerName: user.firstName + " " + user.lastName,
+        ownerEmail: user.email,
+      });
+
+      const result = await storage.saveTicketWithItems(
+        { ...ticketData, id: newTicket.id },
+        itemsData
+      );
+      res.status(201).json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   app.post("/api/tickets/:id/save", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);

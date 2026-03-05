@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useParams, useLocation } from "wouter";
+import { useState, useEffect, useCallback } from "react";
+import { useParams, useLocation, useSearch } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Send, Plus, Trash2, ArrowLeft } from "lucide-react";
 import { apiGet, apiPost, getStoredUser } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
@@ -24,13 +28,44 @@ interface TicketItemRow {
   serviceOrder: string;
 }
 
+const emptyForm = {
+  status: "New",
+  statusKey: "NEW",
+  priority: "",
+  state: "",
+  projectName: "",
+  warehouse: "",
+  serviceOrder: "",
+  ownerName: "",
+  ownerEmail: "",
+  assignedToName: "",
+  assignedToEmail: "",
+  deliveryOrPickup: "",
+  deliveringTo: "",
+  siteNameCoordinates: "",
+  deliveryAddress: "",
+  deliveryTimeSlots: "",
+  receiversName: "",
+  receiversPhone: "",
+  subcontractorName: "",
+  subcontractorEmail: "",
+  internalComments: "",
+};
+
 export default function TicketDetail() {
   const params = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
+  const searchString = useSearch();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const currentUser = getStoredUser();
-  const ticketId = params.id ? parseInt(params.id) : undefined;
+
+  const isNew = params.id === "new";
+  const ticketId = isNew ? undefined : params.id ? parseInt(params.id) : undefined;
+
+  const searchParams = new URLSearchParams(searchString);
+  const directionParam = (searchParams.get("direction") || "INBOUND") as "INBOUND" | "OUTBOUND";
+  const direction = isNew ? directionParam : undefined;
 
   const { data: ticket, isLoading } = useQuery({
     queryKey: ["ticket", ticketId],
@@ -43,10 +78,22 @@ export default function TicketDetail() {
     queryFn: () => apiGet<any[]>("/api/admin/statuses"),
   });
 
-  const [form, setForm] = useState<any>({});
+  const [form, setForm] = useState<any>({ ...emptyForm });
   const [items, setItems] = useState<TicketItemRow[]>([]);
   const [messageText, setMessageText] = useState("");
   const [saving, setSaving] = useState(false);
+  const [showDiscardDialog, setShowDiscardDialog] = useState(false);
+
+  useEffect(() => {
+    if (isNew && currentUser) {
+      setForm({
+        ...emptyForm,
+        ownerName: `${currentUser.firstName} ${currentUser.lastName}`.trim(),
+        ownerEmail: currentUser.email || "",
+      });
+      setItems([]);
+    }
+  }, [isNew]);
 
   useEffect(() => {
     if (ticket) {
@@ -88,8 +135,33 @@ export default function TicketDetail() {
     }
   }, [ticket]);
 
-  const canEdit = currentUser?.role === "ADMIN" || currentUser?.role === "COORDINATOR" ||
+  const ticketDirection = isNew ? directionParam : ticket?.direction;
+  const backPath = ticketDirection === "OUTBOUND" ? "/outbound" : "/inbound";
+
+  const canEdit = isNew || currentUser?.role === "ADMIN" || currentUser?.role === "COORDINATOR" ||
     (currentUser?.role === "USER" && ticket?.createdByUserId === currentUser?.id);
+
+  const hasUnsavedData = useCallback(() => {
+    if (!isNew) return false;
+    const checkFields = [
+      "priority", "state", "projectName", "warehouse", "serviceOrder",
+      "assignedToName", "assignedToEmail", "deliveryOrPickup", "deliveringTo",
+      "siteNameCoordinates", "deliveryAddress", "deliveryTimeSlots",
+      "receiversName", "receiversPhone", "subcontractorName", "subcontractorEmail",
+      "internalComments",
+    ];
+    const hasFormData = checkFields.some(f => form[f]);
+    const hasItems = items.some(i => i.itemCode || i.description || i.uom || i.quantity || i.comments);
+    return !!(hasFormData || hasItems);
+  }, [isNew, form, items]);
+
+  const handleBack = () => {
+    if (isNew && hasUnsavedData()) {
+      setShowDiscardDialog(true);
+    } else {
+      setLocation(backPath);
+    }
+  };
 
   const handleSave = async () => {
     if (!form.state) { toast({ title: "State is required", variant: "destructive" }); return; }
@@ -98,17 +170,32 @@ export default function TicketDetail() {
 
     setSaving(true);
     try {
-      await apiPost(`/api/tickets/${ticketId}/save`, {
-        ticket: form,
-        items: items.map(i => ({
-          ...i,
-          quantity: i.quantity || null,
-          direction: ticket.direction,
-        })),
-      });
-      queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
-      queryClient.invalidateQueries({ queryKey: ["tickets"] });
-      toast({ title: "Ticket saved successfully" });
+      if (isNew) {
+        const result = await apiPost<any>("/api/tickets/create-full", {
+          direction: directionParam,
+          ticket: form,
+          items: items.map(i => ({
+            ...i,
+            quantity: i.quantity || null,
+            direction: directionParam,
+          })),
+        });
+        queryClient.invalidateQueries({ queryKey: ["tickets"] });
+        toast({ title: "Ticket created successfully" });
+        setLocation(`/tickets/${result.ticket.id}`);
+      } else {
+        await apiPost(`/api/tickets/${ticketId}/save`, {
+          ticket: form,
+          items: items.map(i => ({
+            ...i,
+            quantity: i.quantity || null,
+            direction: ticket.direction,
+          })),
+        });
+        queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
+        queryClient.invalidateQueries({ queryKey: ["tickets"] });
+        toast({ title: "Ticket saved successfully" });
+      }
     } catch (err: any) {
       toast({ title: "Save failed", description: err.message, variant: "destructive" });
     } finally {
@@ -117,7 +204,7 @@ export default function TicketDetail() {
   };
 
   const handleSendMessage = async () => {
-    if (!messageText.trim()) return;
+    if (!messageText.trim() || isNew) return;
     try {
       await apiPost(`/api/tickets/${ticketId}/messages`, { messageText });
       setMessageText("");
@@ -139,31 +226,68 @@ export default function TicketDetail() {
     setItems(items.map((item, i) => i === index ? { ...item, [field]: value } : item));
   };
 
-  if (isLoading) return <div className="p-8 text-slate-500">Loading...</div>;
-  if (!ticket) return <div className="p-8 text-xl font-medium">Ticket not found</div>;
+  if (!isNew && isLoading) return <div className="p-8 text-slate-500">Loading...</div>;
+  if (!isNew && !ticket) return <div className="p-8 text-xl font-medium">Ticket not found</div>;
 
-  const messages = ticket.messages || [];
+  const messages = isNew ? [] : (ticket?.messages || []);
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
+      <AlertDialog open={showDiscardDialog} onOpenChange={setShowDiscardDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unsaved changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes on this new ticket. Would you like to save it or discard and go back?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowDiscardDialog(false)}>
+              Keep editing
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={() => {
+                setShowDiscardDialog(false);
+                setLocation(backPath);
+              }}
+              data-testid="button-discard"
+            >
+              Discard & go back
+            </AlertDialogAction>
+            <AlertDialogAction
+              onClick={() => {
+                setShowDiscardDialog(false);
+                handleSave();
+              }}
+              data-testid="button-save-and-close"
+            >
+              Save ticket
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="flex justify-between items-center mb-8">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => setLocation(ticket.direction === "INBOUND" ? "/inbound" : "/outbound")} data-testid="button-back">
+          <Button variant="ghost" size="icon" onClick={handleBack} data-testid="button-back">
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div>
             <h1 className="text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-3" data-testid="text-ticket-title">
-              Ticket #{ticket.id}
+              {isNew ? "New Ticket" : `Ticket #${ticket.id}`}
               <Badge variant="outline" className="text-sm">
-                {ticket.direction}
+                {ticketDirection}
               </Badge>
             </h1>
-            <p className="text-slate-500 mt-1">Created {new Date(ticket.createdAt).toLocaleString()}</p>
+            {!isNew && (
+              <p className="text-slate-500 mt-1">Created {new Date(ticket.createdAt).toLocaleString()}</p>
+            )}
           </div>
         </div>
         {canEdit && (
           <Button onClick={handleSave} disabled={saving} data-testid="button-save-ticket">
-            {saving ? "Saving..." : "Save Ticket"}
+            {saving ? "Saving..." : isNew ? "Create Ticket" : "Save Ticket"}
           </Button>
         )}
       </div>
@@ -385,36 +509,41 @@ export default function TicketDetail() {
             </CardHeader>
             <CardContent className="flex-1 flex flex-col min-h-0 overflow-hidden">
               <div className="flex-1 overflow-y-auto space-y-3 mb-4 pr-1">
-                {messages.length === 0 && (
+                {isNew ? (
+                  <p className="text-sm text-slate-400 text-center py-4">Save the ticket first to start chatting.</p>
+                ) : messages.length === 0 ? (
                   <p className="text-sm text-slate-400 text-center py-4">No messages yet.</p>
-                )}
-                {messages.map((msg: any) => (
-                  <div key={msg.id} className="bg-slate-50 rounded-lg p-3 border border-slate-100" data-testid={`message-${msg.id}`}>
-                    <div className="flex justify-between items-baseline mb-1">
-                      <span className="font-semibold text-sm text-slate-900">
-                        {msg.senderFirstName} {msg.senderLastName}
-                      </span>
-                      <span className="text-xs text-slate-400">
-                        {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                      </span>
+                ) : (
+                  messages.map((msg: any) => (
+                    <div key={msg.id} className="bg-slate-50 rounded-lg p-3 border border-slate-100" data-testid={`message-${msg.id}`}>
+                      <div className="flex justify-between items-baseline mb-1">
+                        <span className="font-semibold text-sm text-slate-900">
+                          {msg.senderFirstName} {msg.senderLastName}
+                        </span>
+                        <span className="text-xs text-slate-400">
+                          {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </div>
+                      <p className="text-sm text-slate-700">{msg.messageText}</p>
                     </div>
-                    <p className="text-sm text-slate-700">{msg.messageText}</p>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Type a message..."
-                  value={messageText}
-                  onChange={e => setMessageText(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && handleSendMessage()}
-                  className="flex-1"
-                  data-testid="input-message"
-                />
-                <Button size="icon" onClick={handleSendMessage} data-testid="button-send-message">
-                  <Send className="w-4 h-4" />
-                </Button>
-              </div>
+              {!isNew && (
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Type a message..."
+                    value={messageText}
+                    onChange={e => setMessageText(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && handleSendMessage()}
+                    className="flex-1"
+                    data-testid="input-message"
+                  />
+                  <Button size="icon" onClick={handleSendMessage} data-testid="button-send-message">
+                    <Send className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
