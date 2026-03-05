@@ -79,6 +79,11 @@ export default function TicketDetail() {
     queryFn: () => apiGet<any[]>("/api/admin/statuses"),
   });
 
+  const { data: subcontractorsList } = useQuery({
+    queryKey: ["subcontractors"],
+    queryFn: () => apiGet<any[]>("/api/admin/subcontractors"),
+  });
+
   const [form, setForm] = useState<any>({ ...emptyForm });
   const [items, setItems] = useState<TicketItemRow[]>([]);
   const [itemsExpanded, setItemsExpanded] = useState(false);
@@ -609,6 +614,41 @@ export default function TicketDetail() {
             <CardContent>
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
+                  <Label>Subcontractor</Label>
+                  <Select
+                    value={form.subcontractorName || ""}
+                    onValueChange={v => {
+                      const sc = (subcontractorsList || []).find((s: any) => s.name === v);
+                      if (sc) {
+                        setForm({
+                          ...form,
+                          subcontractorName: sc.name,
+                          subcontractorEmail: sc.email || "",
+                          receiversName: sc.receiversName || form.receiversName,
+                          receiversPhone: sc.receiversContact || form.receiversPhone,
+                          deliveryAddress: sc.address || form.deliveryAddress,
+                        });
+                      } else {
+                        setForm({ ...form, subcontractorName: v });
+                      }
+                    }}
+                    disabled={!canEdit}
+                  >
+                    <SelectTrigger data-testid="select-subcontractor">
+                      <SelectValue placeholder="Select subcontractor..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(subcontractorsList || []).map((sc: any) => (
+                        <SelectItem key={sc.id} value={sc.name}>{sc.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Subcontractor Email</Label>
+                  <Input value={form.subcontractorEmail} onChange={e => setForm({ ...form, subcontractorEmail: e.target.value })} disabled={!canEdit} />
+                </div>
+                <div className="space-y-2">
                   <Label>Delivery or Pickup</Label>
                   <Select value={form.deliveryOrPickup || ""} onValueChange={v => setForm({ ...form, deliveryOrPickup: v })} disabled={!canEdit}>
                     <SelectTrigger data-testid="select-delivery-pickup">
@@ -616,7 +656,7 @@ export default function TicketDetail() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Delivery">Delivery</SelectItem>
-                      <SelectItem value="Pickup">Pickup</SelectItem>
+                      <SelectItem value="Pickup from Warehouse">Pickup from Warehouse</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -643,24 +683,6 @@ export default function TicketDetail() {
                 <div className="col-span-2 space-y-2">
                   <Label>Delivery Address</Label>
                   <Textarea value={form.deliveryAddress} onChange={e => setForm({ ...form, deliveryAddress: e.target.value })} disabled={!canEdit} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle>Subcontractor</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label>Name</Label>
-                  <Input value={form.subcontractorName} onChange={e => setForm({ ...form, subcontractorName: e.target.value })} disabled={!canEdit} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Email</Label>
-                  <Input value={form.subcontractorEmail} onChange={e => setForm({ ...form, subcontractorEmail: e.target.value })} disabled={!canEdit} />
                 </div>
               </div>
             </CardContent>
