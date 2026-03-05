@@ -43,7 +43,7 @@ export default function Dashboard() {
     queryFn: () => apiGet<any>("/api/tickets?status=Closed&pageSize=1"),
   });
 
-  const listParams = new URLSearchParams({ pageSize: "20" });
+  const listParams = new URLSearchParams({ pageSize: "20", sortBy: "id", sortOrder: "desc" });
   if (activeFilter === "inbound") listParams.set("direction", "INBOUND");
   if (activeFilter === "outbound") listParams.set("direction", "OUTBOUND");
   if (activeFilter === "new") listParams.set("status", "New");
@@ -145,7 +145,7 @@ export default function Dashboard() {
                   <Link key={ticket.id} href={`/tickets/${ticket.id}`}>
                     <div className="flex items-center justify-between p-4 rounded-lg border border-slate-100 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer" data-testid={`card-ticket-${ticket.id}`}>
                       <div>
-                        <p className="font-medium text-slate-900">Ticket #{ticket.id}</p>
+                        <p className="font-medium text-slate-900">Ticket #{ticket.legacyId || ticket.id}</p>
                         <p className="text-sm text-slate-500">{ticket.projectName || "No project"} &middot; {ticket.direction}</p>
                       </div>
                       <div className="text-right">
