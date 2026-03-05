@@ -10,7 +10,8 @@
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
     "db:push": "drizzle-kit push",
-    "import:sharepoint": "tsx scripts/importSharePoint.ts"
+    "import:sharepoint": "tsx scripts/importSharePoint.ts",
+    "export-db": "tsx scripts/export-db.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

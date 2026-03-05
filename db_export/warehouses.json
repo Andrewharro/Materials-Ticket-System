@@ -1,0 +1,80 @@
+[
+  {
+    "id": 1,
+    "name": "Adelaide - Tasman logistics",
+    "created_at": "2026-03-05T07:35:23.624Z",
+    "updated_at": "2026-03-05T07:35:23.624Z"
+  },
+  {
+    "id": 2,
+    "name": "Brisbane Coast - Phoenix Logistics",
+    "created_at": "2026-03-05T07:35:23.624Z",
+    "updated_at": "2026-03-05T07:35:23.624Z"
+  },
+  {
+    "id": 3,
+    "name": "Jamestown Sheds",
+    "created_at": "2026-03-05T07:35:23.624Z",
+    "updated_at": "2026-03-05T07:35:23.624Z"
+  },
+  {
+    "id": 4,
+    "name": "LWF Electrical",
+    "created_at": "2026-03-05T07:35:23.624Z",
+    "updated_at": "2026-03-05T07:35:23.624Z"
+  },
+  {
+    "id": 5,
+    "name": "Melbourne - UGL Tullamarine",
+    "created_at": "2026-03-05T07:35:23.624Z",
+    "updated_at": "2026-03-05T07:35:23.624Z"
+  },
+  {
+    "id": 6,
+    "name": "NT - TBA",
+    "created_at": "2026-03-05T07:35:23.624Z",
+    "updated_at": "2026-03-05T07:35:23.624Z"
+  },
+  {
+    "id": 7,
+    "name": "Perth - SDJ",
+    "created_at": "2026-03-05T07:35:23.624Z",
+    "updated_at": "2026-03-05T07:35:23.624Z"
+  },
+  {
+    "id": 8,
+    "name": "Phoenix Express Logistics [Brisbane]",
+    "created_at": "2026-03-05T07:35:23.624Z",
+    "updated_at": "2026-03-05T07:35:23.624Z"
+  },
+  {
+    "id": 9,
+    "name": "Rockhampton - Browns Express",
+    "created_at": "2026-03-05T07:35:23.624Z",
+    "updated_at": "2026-03-05T07:35:23.624Z"
+  },
+  {
+    "id": 10,
+    "name": "Sydney - B dynamics Logistics",
+    "created_at": "2026-03-05T07:35:23.624Z",
+    "updated_at": "2026-03-05T07:35:23.624Z"
+  },
+  {
+    "id": 11,
+    "name": "Sydney - Tasman logistics",
+    "created_at": "2026-03-05T07:35:23.624Z",
+    "updated_at": "2026-03-05T07:35:23.624Z"
+  },
+  {
+    "id": 12,
+    "name": "Taktec",
+    "created_at": "2026-03-05T07:35:23.624Z",
+    "updated_at": "2026-03-05T07:35:23.624Z"
+  },
+  {
+    "id": 13,
+    "name": "UGL",
+    "created_at": "2026-03-05T07:35:23.624Z",
+    "updated_at": "2026-03-05T07:35:23.624Z"
+  }
+]
