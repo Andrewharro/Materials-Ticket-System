@@ -1,0 +1,62 @@
+Fix the Line Items import + display so it matches the SharePoint Excel files.
+
+Problem
+- Ticket detail pages show no line items, even though ItemsInbound.xlsx and ItemsOutbound.xlsx were imported.
+- The relationship is:
+  - Tickets.xlsx ID (SharePoint legacy ticket ID) == ItemsInbound.xlsx TicketID
+  - Tickets.xlsx ID (SharePoint legacy ticket ID) == ItemsOutbound.xlsx TicketID
+- In our DB we store sharepoint ticket ID in tickets.legacyId.
+- Therefore ticket_items.ticketId must link to tickets.id by mapping Items*.TicketID -> tickets.id via tickets.legacyId.
+- Currently this mapping is wrong or the importer didn’t insert ticket_items correctly, so the UI shows empty items.
+
+Required fixes (do all)
+1) Ticket field rename (UI only)
+- Rename the ticket-level field label “Service Order” to “Service Order Ticket” everywhere in the UI (forms + table headers if any).
+- Keep the DB column tickets.serviceOrder as-is; only rename the UI label.
+
+2) Line items fields must match Excel
+- Line items must include:
+  - itemCode, description, uom, quantity, status, comments, serviceOrder
+- Comments field is currently missing from the Line Items UI; add an editable Comments column bound to ticket_items.comments.
+- Each line item has its own Service Order (ticket_items.serviceOrder). A single ticket can have many different service orders across its line items.
+- Do NOT force a single ticket service order onto all line items.
+
+3) Data model check (no breaking changes)
+- Confirm ticket_items has columns: ticketId, direction, itemCode, description, uom, quantity, status, comments, serviceOrder, legacyId.
+- Confirm tickets has legacyId.
+- If any are missing, add them via Drizzle schema update and db:push/migration.
+
+4) Importer fix (this is the key)
+- Update scripts/importSharePoint.ts to correctly import ItemsInbound.xlsx and ItemsOutbound.xlsx into ticket_items.
+- Correct mapping logic:
+  - Read tickets first and ensure tickets.legacyId is set from Tickets.xlsx “ID”.
+  - Build map: legacyTicketId -> actualTicketRow.id (DB id) by querying tickets where legacyId is not null.
+  - For each row in ItemsInbound.xlsx:
+      - legacyTicketId = TicketID
+      - find dbTicketId = map[legacyTicketId]; if missing, log and skip
+      - insert/upsert ticket_items with:
+          direction = INBOUND
+          ticketId = dbTicketId
+          itemCode, description, uom (if present), quantity, status, comments, serviceOrder
+          legacyId = ItemsInbound row “ID” if present (otherwise create a deterministic legacyId like TicketID + row index)
+  - For each row in ItemsOutbound.xlsx:
+      - same but direction = OUTBOUND
+- Use upsert to avoid duplicates:
+  - Prefer upsert by legacyId if present/unique.
+  - If no reliable item legacy id exists, upsert by a composite natural key:
+      (ticketId, direction, itemCode, description, quantity, serviceOrder) to prevent duplicates.
+
+5) Ticket detail query must include items
+- Ensure GET /api/tickets/:id returns ticket + associated ticket_items where ticket_items.ticketId == ticket.id AND ticket_items.direction == ticket.direction.
+- Ensure the Ticket Detail page uses this items array and renders them under “Line Items”.
+
+6) Rerun import safely
+- Add/ensure npm script “import:sharepoint” runs the importer.
+- After code changes, run the importer again so line items populate.
+- Do not wipe tickets; just upsert.
+
+Acceptance criteria
+- Open any Outbound ticket (e.g. #1865) and see line items populated from ItemsOutbound.xlsx where TicketID matches the ticket’s legacyId.
+- Open any Inbound ticket and see line items populated from ItemsInbound.xlsx where TicketID matches.
+- Line Items grid includes editable Service Order and Comments per line item.
+- Ticket-level “Service Order” label reads “Service Order Ticket”.

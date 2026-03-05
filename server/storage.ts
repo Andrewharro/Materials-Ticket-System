@@ -46,7 +46,7 @@ export interface IStorage {
   createTicket(ticket: InsertTicket): Promise<Ticket>;
   updateTicket(id: number, data: Partial<InsertTicket>): Promise<Ticket | undefined>;
 
-  getTicketItems(ticketId: number): Promise<TicketItem[]>;
+  getTicketItems(ticketId: number, direction?: string): Promise<TicketItem[]>;
   upsertTicketItems(ticketId: number, items: InsertTicketItem[]): Promise<TicketItem[]>;
   deleteTicketItem(id: number): Promise<void>;
 
@@ -257,7 +257,7 @@ export class DatabaseStorage implements IStorage {
     const ticket = await this.getTicket(id);
     if (!ticket) return undefined;
 
-    const items = await this.getTicketItems(id);
+    const items = await this.getTicketItems(id, ticket.direction);
     const messages = await this.getTicketMessages(id);
 
     return { ...ticket, items, messages };
@@ -273,8 +273,12 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async getTicketItems(ticketId: number): Promise<TicketItem[]> {
-    return db.select().from(ticketItems).where(eq(ticketItems.ticketId, ticketId)).orderBy(asc(ticketItems.id));
+  async getTicketItems(ticketId: number, direction?: string): Promise<TicketItem[]> {
+    const conditions = [eq(ticketItems.ticketId, ticketId)];
+    if (direction) {
+      conditions.push(eq(ticketItems.direction, direction as any));
+    }
+    return db.select().from(ticketItems).where(and(...conditions)).orderBy(asc(ticketItems.id));
   }
 
   async upsertTicketItems(ticketId: number, items: InsertTicketItem[]): Promise<TicketItem[]> {

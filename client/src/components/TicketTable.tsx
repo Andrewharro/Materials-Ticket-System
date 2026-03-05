@@ -17,7 +17,7 @@ interface ColumnDef {
 const ALL_COLUMNS: ColumnDef[] = [
   { key: "id", label: "ID" },
   { key: "status", label: "Status" },
-  { key: "serviceOrder", label: "Service Order" },
+  { key: "serviceOrder", label: "Service Order Ticket" },
   { key: "projectName", label: "Project" },
   { key: "state", label: "State" },
   { key: "ownerName", label: "Owner" },

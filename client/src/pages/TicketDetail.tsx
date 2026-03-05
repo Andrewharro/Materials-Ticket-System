@@ -326,7 +326,7 @@ export default function TicketDetail() {
                   <Input value={form.projectName} onChange={e => setForm({ ...form, projectName: e.target.value })} disabled={!canEdit} data-testid="input-project-name" />
                 </div>
                 <div className="space-y-2">
-                  <Label>Service Order</Label>
+                  <Label>Service Order Ticket</Label>
                   <Input value={form.serviceOrder} onChange={e => setForm({ ...form, serviceOrder: e.target.value })} disabled={!canEdit} data-testid="input-service-order" />
                 </div>
                 <div className="space-y-2">
@@ -406,6 +406,8 @@ export default function TicketDetail() {
                       <TableHead>UOM</TableHead>
                       <TableHead>Qty</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Service Order</TableHead>
+                      <TableHead>Comments</TableHead>
                       <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -428,6 +430,12 @@ export default function TicketDetail() {
                           <Input value={item.status} onChange={e => updateItem(i, "status", e.target.value)} className="h-8" disabled={!canEdit} />
                         </TableCell>
                         <TableCell>
+                          <Input value={item.serviceOrder} onChange={e => updateItem(i, "serviceOrder", e.target.value)} className="h-8" disabled={!canEdit} data-testid={`input-item-service-order-${i}`} />
+                        </TableCell>
+                        <TableCell>
+                          <Input value={item.comments} onChange={e => updateItem(i, "comments", e.target.value)} className="h-8" disabled={!canEdit} data-testid={`input-item-comments-${i}`} />
+                        </TableCell>
+                        <TableCell>
                           {canEdit && (
                             <Button variant="ghost" size="icon" onClick={() => removeItem(i)} className="h-8 w-8 text-slate-400 hover:text-red-600" data-testid={`button-remove-item-${i}`}>
                               <Trash2 className="w-4 h-4" />
@@ -438,7 +446,7 @@ export default function TicketDetail() {
                     ))}
                     {items.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-4 text-slate-500">No items. Click "Add Item" to begin.</TableCell>
+                        <TableCell colSpan={8} className="text-center py-4 text-slate-500">No items. Click "Add Item" to begin.</TableCell>
                       </TableRow>
                     )}
                   </TableBody>

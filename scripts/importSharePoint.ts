@@ -426,7 +426,9 @@ async function importItems(
     };
 
     if (legacyId) {
-      const existing = await db.select().from(ticketItems).where(eq(ticketItems.legacyId, legacyId));
+      const existing = await db.select().from(ticketItems).where(
+        and(eq(ticketItems.legacyId, legacyId), eq(ticketItems.direction, direction))
+      );
       if (existing.length > 0) {
         await db.update(ticketItems).set(data).where(eq(ticketItems.id, existing[0].id));
         updated++;

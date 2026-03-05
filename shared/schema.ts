@@ -99,13 +99,14 @@ export const ticketItems = pgTable("ticket_items", {
   status: varchar("status", { length: 100 }),
   comments: text("comments"),
   serviceOrder: varchar("service_order", { length: 255 }),
-  legacyId: integer("legacy_id").unique(),
+  legacyId: integer("legacy_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (table) => [
   index("idx_items_ticket").on(table.ticketId),
   index("idx_items_direction").on(table.direction),
   index("idx_items_code").on(table.itemCode),
+  uniqueIndex("idx_items_legacy_dir").on(table.legacyId, table.direction),
 ]);
 
 export const ticketItemsRelations = relations(ticketItems, ({ one }) => ({

@@ -32,7 +32,9 @@ Enums: user_role (USER/COORDINATOR/ADMIN), ticket_direction (INBOUND/OUTBOUND), 
 
 ## Imported Data (from SharePoint XLSX)
 - 1,869 tickets with legacy IDs
-- 1,674 ticket items (mapped via legacy ticket IDs)
+- 3,348 ticket items (1,674 inbound + 1,674 outbound, mapped via legacy ticket IDs)
+- Items linked via composite unique key (legacyId, direction) to avoid INBOUND/OUTBOUND overlap
+- 177 unique tickets have associated line items
 - 49 subcontractors
 - 13 departments, 11 department techs
 - 6 ticket statuses
