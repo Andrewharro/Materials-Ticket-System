@@ -1,6 +1,18 @@
 node_modules
 dist
+build
+.next
 .DS_Store
 server/public
 vite.config.ts.*
 *.tar.gz
+
+# Environment
+.env
+
+# Database exports
+db_export/
+database_export.sql
+
+# Docker volumes
+pgdata/

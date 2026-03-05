@@ -1,0 +1,70 @@
+We are preparing this repo to be recreated accurately by Gemini in Google AI Studio and deployed to Google Cloud using PostgreSQL (NOT SQLite).
+
+Do NOT refactor the app code or change the data model. Only add missing “infrastructure / reproducibility” files + minimal scripts.
+
+Create / update these files:
+
+1) .env.example
+Include all required env vars used by the app, with safe placeholder values:
+- DATABASE_URL=
+- SESSION_SECRET= (or JWT_SECRET if used)
+- APP_BASE_URL=
+- SMTP_HOST=
+- SMTP_PORT=
+- SMTP_USER=
+- SMTP_PASS=
+- SMTP_FROM=
+- COORDINATOR_GROUP_EMAIL=
+Also include any other env vars referenced in the codebase (search for process.env.*) and add them.
+
+2) docker-compose.yml
+Provide a local PostgreSQL service for development:
+- postgres:15
+- ports 5432:5432
+- database name: materials_os
+- user: materials
+- password: materials_password
+- volume for persistence
+Also add a pgAdmin service OPTIONAL (commented out) if easy.
+
+3) .gitignore (if needed)
+Ensure .env, node_modules, dist, build, .next, and any local DB volumes are ignored.
+Do not remove existing entries; only add missing ones.
+
+4) README.md update (or create docs/LOCAL_DEV.md if preferred)
+Add a “Local Dev Quickstart” section:
+- prerequisites (Node, Docker)
+- copy .env.example to .env and set DATABASE_URL to local compose connection string
+- docker compose up -d
+- npm install
+- run DB setup (drizzle push/migrate) using the existing project commands
+- create default admin user credentials if a seed script exists
+- npm run dev
+Also add a “Google Cloud Deployment Prep” section (high-level only; no need to implement deployment yet).
+
+5) package.json scripts (only if permitted in Replit)
+If Replit allows editing package.json:
+Add scripts without breaking existing ones:
+- "db:up": "docker compose up -d"
+- "db:down": "docker compose down"
+- "db:reset": "docker compose down -v && docker compose up -d"
+- "db:push": keep existing if present (do not change)
+- "sanity:check": "tsx scripts/sanityCheck.ts" (if scripts exist)
+- "import:sharepoint": "tsx scripts/importSharePoint.ts" (if exists)
+If Replit won’t let you edit package.json, create a scripts/COMMANDS.md with the equivalent commands.
+
+6) Add a “bootstrap” helper script
+Create scripts/bootstrap.ts (or bootstrap.sh if simpler) that:
+- verifies DATABASE_URL is set
+- runs the existing drizzle schema push/migrate command
+- (optional) runs seed if present (do not invent fake seed data unless seed already exists)
+- prints next steps (npm run dev, import command, etc.)
+Make it safe: it should not delete data unless a flag is provided.
+
+Acceptance checks:
+- Repo contains .env.example and docker-compose.yml at root
+- Local DB can be started with docker compose and app can connect via DATABASE_URL
+- Documentation is clear and minimal
+- No application logic changes; only reproducibility + docs + scripts
+
+After changes, summarise exactly what files were created/modified and where.
