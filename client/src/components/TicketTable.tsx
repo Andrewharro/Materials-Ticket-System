@@ -810,7 +810,7 @@ export default function TicketTable({ direction }: { direction: "INBOUND" | "OUT
   }
 
   const { data, isLoading } = useQuery({
-    queryKey: ["tickets", direction, statusFilter, searchTerm, page, sortBy, sortOrder, debouncedColumnFilters],
+    queryKey: ["tickets", direction, statusFilter, searchTerm, page, pageSize, sortBy, sortOrder, debouncedColumnFilters],
     queryFn: () => apiGet<any>(`/api/tickets?${params.toString()}`),
   });
 
