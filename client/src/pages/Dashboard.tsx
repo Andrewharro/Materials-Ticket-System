@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Inbox, Send, Clock, CheckCircle, X } from "lucide-react";
+import { Inbox, Send, Clock, CheckCircle, X, ChevronDown, ChevronUp } from "lucide-react";
 import { apiGet } from "@/lib/auth";
 import { Link } from "wouter";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ type FilterKey = "inbound" | "outbound" | "new" | "open" | "onhold" | "closed" |
 
 export default function Dashboard() {
   const [activeFilter, setActiveFilter] = useState<FilterKey>(null);
+  const [ticketsExpanded, setTicketsExpanded] = useState(true);
 
   const { data: inboundData } = useQuery({
     queryKey: ["tickets-inbound-stats"],
@@ -111,11 +112,22 @@ export default function Dashboard() {
       </div>
 
       <Card className="shadow-sm border-slate-200">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-lg">{listTitle}</CardTitle>
+        <CardHeader
+          className="flex flex-row items-center justify-between cursor-pointer select-none"
+          onClick={() => setTicketsExpanded(prev => !prev)}
+          data-testid="button-toggle-tickets"
+        >
+          <div className="flex items-center gap-2">
+            <CardTitle className="text-lg">{listTitle}</CardTitle>
+            {ticketsExpanded ? (
+              <ChevronUp className="w-5 h-5 text-slate-400" />
+            ) : (
+              <ChevronDown className="w-5 h-5 text-slate-400" />
+            )}
+          </div>
           {activeFilter && (
             <button
-              onClick={() => setActiveFilter(null)}
+              onClick={(e) => { e.stopPropagation(); setActiveFilter(null); }}
               className="text-sm text-slate-500 hover:text-slate-800 flex items-center gap-1 transition-colors"
               data-testid="button-clear-filter"
             >
@@ -123,30 +135,32 @@ export default function Dashboard() {
             </button>
           )}
         </CardHeader>
-        <CardContent>
-          {filteredTickets.length === 0 ? (
-            <p className="text-slate-500 py-4 text-center">No tickets found.</p>
-          ) : (
-            <div className="space-y-3">
-              {filteredTickets.map((ticket: any) => (
-                <Link key={ticket.id} href={`/tickets/${ticket.id}`}>
-                  <div className="flex items-center justify-between p-4 rounded-lg border border-slate-100 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer" data-testid={`card-ticket-${ticket.id}`}>
-                    <div>
-                      <p className="font-medium text-slate-900">Ticket #{ticket.id}</p>
-                      <p className="text-sm text-slate-500">{ticket.projectName || "No project"} &middot; {ticket.direction}</p>
+        {ticketsExpanded && (
+          <CardContent>
+            {filteredTickets.length === 0 ? (
+              <p className="text-slate-500 py-4 text-center">No tickets found.</p>
+            ) : (
+              <div className="space-y-3">
+                {filteredTickets.map((ticket: any) => (
+                  <Link key={ticket.id} href={`/tickets/${ticket.id}`}>
+                    <div className="flex items-center justify-between p-4 rounded-lg border border-slate-100 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer" data-testid={`card-ticket-${ticket.id}`}>
+                      <div>
+                        <p className="font-medium text-slate-900">Ticket #{ticket.id}</p>
+                        <p className="text-sm text-slate-500">{ticket.projectName || "No project"} &middot; {ticket.direction}</p>
+                      </div>
+                      <div className="text-right">
+                        <Badge variant="outline" className={statusColor(ticket.status)}>
+                          {ticket.status}
+                        </Badge>
+                        <p className="text-xs text-slate-400 mt-1">{new Date(ticket.createdAt).toLocaleDateString()}</p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <Badge variant="outline" className={statusColor(ticket.status)}>
-                        {ticket.status}
-                      </Badge>
-                      <p className="text-xs text-slate-400 mt-1">{new Date(ticket.createdAt).toLocaleDateString()}</p>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </CardContent>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        )}
       </Card>
     </div>
   );
