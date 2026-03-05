@@ -673,7 +673,7 @@ export default function TicketTable({ direction }: { direction: "INBOUND" | "OUT
   const [page, setPage] = useState(1);
   const pageSize = 25;
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => loadColumnConfig(direction));
-  const [sortBy, setSortBy] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<string | null>("id");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
 
