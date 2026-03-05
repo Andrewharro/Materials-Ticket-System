@@ -532,8 +532,8 @@ export default function TicketDetail() {
 
       <div className="flex justify-between items-center mb-8">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={handleBack} data-testid="button-back">
-            <ArrowLeft className="w-7 h-7" />
+          <Button variant="ghost" onClick={handleBack} data-testid="button-back" className="h-12 w-12 p-0">
+            <ArrowLeft className="w-9 h-9" />
           </Button>
           <div>
             <h1 className="text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-3" data-testid="text-ticket-title">
