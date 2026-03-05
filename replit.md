@@ -31,16 +31,18 @@ Tables: users, tickets, ticket_items, ticket_messages, subcontractors, departmen
 Enums: user_role (USER/COORDINATOR/ADMIN), ticket_direction (INBOUND/OUTBOUND), ticket_status_key
 
 ## Imported Data (from SharePoint XLSX)
-- 1,869 tickets with legacy IDs
-- 1,592 ticket items (all INBOUND; outbound items file references same INBOUND tickets, so those rows are skipped)
-- Items linked via composite unique key (legacyId, direction); direction integrity enforced: items must match ticket direction
+- 1,869 tickets with legacy IDs; Excel TicketID = SharePoint ID = tickets.legacy_id (NOT tickets.id)
+- 1,592 ticket items; both ItemsInbound.xlsx and ItemsOutbound.xlsx contain identical data referencing INBOUND tickets only
+- Item direction is derived from the parent ticket's direction (not from the filename)
+- Items linked via composite unique key (legacyId, direction); direction integrity enforced
 - 49 subcontractors, 13 departments, 11 department techs, 6 ticket statuses
 - 34 users derived from ticket owner/assigned emails
 
 ## Data Integrity Scripts
+- `npx tsx scripts/remapTicketItemsTicketId.ts` — One-time fix: remaps ticket_items.ticket_id from legacy_id to DB id
 - `npx tsx scripts/enforceTicketDirectionIntegrity.ts` — Deletes mismatched-direction items and blank rows
-- `npx tsx scripts/importSharePoint.ts` — XLSX importer (idempotent upsert, skips direction mismatches)
-- `npx tsx scripts/sanityCheck.ts` — Verifies no direction mismatches, no blank items, reports top tickets
+- `npx tsx scripts/importSharePoint.ts` — XLSX importer (idempotent upsert; maps TicketID→legacy_id→db id; direction from ticket)
+- `npx tsx scripts/sanityCheck.ts` — Verifies no direction/mapping mismatches, validates SharePoint ticket 733
 
 ## Roles
 - **USER**: Can create tickets, edit own drafts, post messages

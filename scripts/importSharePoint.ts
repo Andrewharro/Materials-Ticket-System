@@ -394,13 +394,12 @@ async function importTickets(
 
 async function importItems(
   filename: string,
-  direction: "INBOUND" | "OUTBOUND",
   legacyToNewId: Map<number, number>,
   ticketDirectionMap: Map<number, string>
 ) {
-  console.log(`\n--- Importing ${direction} Items from ${filename} ---`);
+  console.log(`\n--- Importing Items from ${filename} ---`);
   const rows = readXlsx(filename);
-  let inserted = 0, updated = 0, skipped = 0, missingTicket = 0, dirMismatch = 0, blankRows = 0;
+  let inserted = 0, updated = 0, skipped = 0, missingTicket = 0, blankRows = 0;
 
   for (const row of rows) {
     const legacyTicketId = intVal(col(row, "TicketID"));
@@ -409,11 +408,8 @@ async function importItems(
     const newTicketId = legacyToNewId.get(legacyTicketId);
     if (!newTicketId) { missingTicket++; continue; }
 
-    const ticketDir = ticketDirectionMap.get(newTicketId);
-    if (ticketDir !== direction) {
-      dirMismatch++;
-      continue;
-    }
+    const direction = ticketDirectionMap.get(newTicketId) as "INBOUND" | "OUTBOUND";
+    if (!direction) { missingTicket++; continue; }
 
     const itemCode = str(col(row, "ItemCode"), 255);
     const description = str(col(row, "Description"));
@@ -455,7 +451,7 @@ async function importItems(
     inserted++;
   }
 
-  console.log(`  Inserted: ${inserted}, Updated: ${updated}, Skipped: ${skipped}, Missing ticket: ${missingTicket}, Dir mismatch: ${dirMismatch}, Blank: ${blankRows}`);
+  console.log(`  Inserted: ${inserted}, Updated: ${updated}, Skipped: ${skipped}, Missing ticket: ${missingTicket}, Blank: ${blankRows}`);
 }
 
 async function main() {
@@ -478,8 +474,8 @@ async function main() {
   }
   console.log(`\nBuilt ticket direction map: ${ticketDirectionMap.size} tickets`);
 
-  await importItems("ItemsInbound.xlsx", "INBOUND", legacyToNewId, ticketDirectionMap);
-  await importItems("ItemsOutbound.xlsx", "OUTBOUND", legacyToNewId, ticketDirectionMap);
+  await importItems("ItemsInbound.xlsx", legacyToNewId, ticketDirectionMap);
+  await importItems("ItemsOutbound.xlsx", legacyToNewId, ticketDirectionMap);
 
   console.log("\n=== Import Complete ===");
   process.exit(0);

@@ -1,0 +1,51 @@
+We have a wrong key mapping issue: Excel TicketID is SharePoint ID and must map to tickets.legacy_id, NOT tickets.id.
+
+Right now you are validating “ticket 733” using tickets.id = 733, but my requirement refers to SharePoint TicketID = 733 (tickets.legacy_id = 733). These are not the same thing.
+
+Do this in order:
+
+1) Prove the mismatch with queries (print results)
+- Query A: SELECT id, legacy_id, direction, status FROM tickets WHERE id = 733;
+- Query B: SELECT id, legacy_id, direction, status FROM tickets WHERE legacy_id = 733;
+- Query C: SELECT COUNT(*) AS items_by_db_id FROM ticket_items WHERE ticket_id = 733;
+- Query D: SELECT t.id AS db_ticket_id, t.legacy_id, t.direction, COUNT(i.*) AS items
+          FROM tickets t
+          LEFT JOIN ticket_items i ON i.ticket_id = t.id
+          WHERE t.legacy_id = 733
+          GROUP BY t.id, t.legacy_id, t.direction;
+
+2) Fix the import mapping (root cause)
+In scripts/importSharePoint.ts:
+- Treat ItemsInbound.xlsx/ItemsOutbound.xlsx column TicketID as SharePoint TicketID.
+- Map it to the DB ticket id by looking up tickets.id where tickets.legacy_id == TicketID.
+- Never set ticket_items.ticket_id = TicketID directly.
+- Build a map legacyTicketId -> dbTicketId using tickets.legacy_id.
+- Also build ticketDirectionMap keyed by tickets.id (db id) OR by legacyTicketId, but be consistent.
+
+3) One-time remap/cleanup script (because bad rows already exist)
+Create scripts/remapTicketItemsTicketId.ts that:
+- Finds any ticket_items rows where ticket_id equals a SharePoint legacy id (i.e. where a tickets row exists with legacy_id = ticket_items.ticket_id).
+- Updates ticket_items.ticket_id to the correct tickets.id for that legacy_id.
+Example logic:
+  For each row in ticket_items:
+    Find ticket t where t.legacy_id = ticket_items.ticket_id
+    If found, update ticket_items.ticket_id = t.id
+- After remap, delete any remaining mismatched-direction rows:
+  DELETE FROM ticket_items ti
+  USING tickets t
+  WHERE ti.ticket_id = t.id AND ti.direction <> t.direction;
+
+4) Update sanity check to validate using legacy IDs too
+In scripts/sanityCheck.ts add an explicit check for the sample ticket:
+- Validate SharePoint ticket 733 using tickets.legacy_id = 733 (not tickets.id).
+- Print: db_ticket_id, ticket.direction, count(items), distinct item directions.
+
+5) Run in order automatically (or tell me the exact commands)
+- npx tsx scripts/remapTicketItemsTicketId.ts
+- npx tsx scripts/enforceTicketDirectionIntegrity.ts
+- npx tsx scripts/sanityCheck.ts
+
+Acceptance criteria
+- When I look up SharePoint TicketID 733 (tickets.legacy_id = 733), it is OUTBOUND and only shows the ~10 outbound items from ItemsOutbound.xlsx.
+- No ticket contains both inbound and outbound items.
+- The “ticket 733” discussion always refers to legacy_id = 733, not id = 733.
