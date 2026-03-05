@@ -60,8 +60,8 @@ export default function TicketDetail() {
   const { toast } = useToast();
   const currentUser = getStoredUser();
 
-  const isNew = params.id === "new";
-  const ticketId = isNew ? undefined : params.id ? parseInt(params.id) : undefined;
+  const isNew = !params.id || params.id === "new";
+  const ticketId = isNew ? undefined : parseInt(params.id);
 
   const searchParams = new URLSearchParams(searchString);
   const directionParam = (searchParams.get("direction") || "INBOUND") as "INBOUND" | "OUTBOUND";
